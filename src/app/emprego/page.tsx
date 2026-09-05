@@ -116,4 +116,86 @@ export default function EmpregoPage() {
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {listaFiltrada.map((v) => (
             <div key={v.id} className="card border-l-4 border-l-red">
-              
+              <span className="tag !bg-navy !text-white w-fit">{v.tipo}</span>
+              <h4 className="font-bold text-base">{v.titulo}</h4>
+              <div className="font-mono text-[11px] text-muted">
+                {v.barbearias?.nome ?? 'Barbearia'} · {v.cidade} · {timeAgo(v.criado_em)}
+              </div>
+              <p className="text-sm text-[#4a4536] line-clamp-3">{v.descricao}</p>
+              <div className="flex gap-2 mt-1">
+                <button className="btn btn-red btn-sm" onClick={() => { setVagaAlvo(v); setModal('candidatar'); }}>Candidatar-me</button>
+                <button className="btn btn-danger btn-sm" onClick={() => removerVaga(v.id)}>Remover</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {modal === 'post' && (
+        <Modal onClose={() => { setModal(null); setMsg(null); }}>
+          {barbearias.length === 0 ? (
+            <>
+              <h2 className="text-3xl mb-1">Publicar vaga</h2>
+              <p className="text-sm text-muted mb-5">Precisas de registar a tua barbearia primeiro, para os barbeiros saberem quem está a contratar.</p>
+              <a href="/barbearias?registar=1" className="btn btn-primary w-full justify-center">Registar barbearia agora</a>
+            </>
+          ) : (
+            <form onSubmit={(e) => { e.preventDefault(); publicarVaga(new FormData(e.currentTarget)); }}>
+              <h2 className="text-3xl mb-1">Publicar vaga</h2>
+              <p className="text-sm text-muted mb-5">A vaga aparece imediatamente para todos os barbeiros.</p>
+              {msg && <div className={`text-sm font-mono px-3 py-2.5 rounded-md mb-3 ${msg.ok ? 'bg-[#dfe9df] text-[#2e5a2e]' : 'bg-[#f3d9d4] text-redDark'}`}>{msg.text}</div>}
+              <label className="block mb-3.5">
+                <span className="field-label">Barbearia responsável</span>
+                <select name="barbearia_id" className="field-input">
+                  {barbearias.map((b) => <option key={b.id} value={b.id}>{b.nome}</option>)}
+                </select>
+              </label>
+              <label className="block mb-3.5">
+                <span className="field-label">Título da vaga</span>
+                <input name="titulo" className="field-input" placeholder="Ex: Barbeiro para fins de semana" />
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="block mb-3.5">
+                  <span className="field-label">Tipo</span>
+                  <select name="tipo" className="field-input">{TIPOS_VAGA.map((t) => <option key={t}>{t}</option>)}</select>
+                </label>
+                <label className="block mb-3.5">
+                  <span className="field-label">Cidade</span>
+                  <select name="cidade" className="field-input">{CIDADES.map((c) => <option key={c}>{c}</option>)}</select>
+                </label>
+              </div>
+              <label className="block mb-3.5">
+                <span className="field-label">Descrição</span>
+                <textarea name="descricao" className="field-input min-h-[90px]" placeholder="Horário, condições, o que procuras no candidato." />
+              </label>
+              <button type="submit" className="btn btn-red w-full justify-center">Publicar vaga</button>
+            </form>
+          )}
+        </Modal>
+      )}
+
+      {modal === 'candidatar' && vagaAlvo && (
+        <Modal onClose={() => { setModal(null); setMsg(null); }}>
+          <form onSubmit={(e) => { e.preventDefault(); enviarCandidatura(new FormData(e.currentTarget)); }}>
+            <h2 className="text-3xl mb-1">Candidatar-me</h2>
+            <p className="text-sm text-muted mb-5">{vagaAlvo.titulo} · {vagaAlvo.barbearias?.nome} · {vagaAlvo.cidade}</p>
+            {msg && <div className={`text-sm font-mono px-3 py-2.5 rounded-md mb-3 ${msg.ok ? 'bg-[#dfe9df] text-[#2e5a2e]' : 'bg-[#f3d9d4] text-redDark'}`}>{msg.text}</div>}
+            <label className="block mb-3.5">
+              <span className="field-label">O teu nome</span>
+              <input name="nome" className="field-input" placeholder="Nome completo" />
+            </label>
+            <label className="block mb-3.5">
+              <span className="field-label">Contacto (telemóvel ou email)</span>
+              <input name="contacto" className="field-input" placeholder="9xx xxx xxx ou email" />
+            </label>
+            <label className="block mb-3.5">
+              <span className="field-label">Mensagem (opcional)</span>
+              <textarea name="mensagem" className="field-input min-h-[80px]" placeholder="Uma breve apresentação para a barbearia." />
+            </label>
+            <button type="submit" className="btn btn-red w-full justify-center">Enviar candidatura</button>
+          </form>
+        </Modal>
+      )}
+    </div>
+  );
+}
