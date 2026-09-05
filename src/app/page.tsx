@@ -85,4 +85,21 @@ export default async function HomePage() {
         <h2 className="text-3xl mb-6">Escolhe o teu caminho</h2>
         <div className="grid md:grid-cols-2 gap-5">
           <div className="bg-card border-[1.5px] border-ink rounded-2xl p-7">
-            
+            <h3 className="text-2xl mb-2 font-body normal-case tracking-normal font-bold">✂️ Sou barbeiro</h3>
+            <p className="text-sm text-[#4a4536] mb-4">
+              Mostra o teu trabalho, define a tua cidade e especialidades, e aparece para barbearias à procura de talento.
+            </p>
+            <Link href="/barbeiros?registar=1" className="btn btn-red">Criar o meu portefólio</Link>
+          </div>
+          <div className="bg-card border-[1.5px] border-ink rounded-2xl p-7">
+            <h3 className="text-2xl mb-2 font-body normal-case tracking-normal font-bold">🏠 Sou barbearia</h3>
+            <p className="text-sm text-[#4a4536] mb-4">
+              Apresenta o teu espaço e publica as vagas em aberto — tempo inteiro, part-time ou aluguer de cadeira.
+            </p>
+            <Link href="/barbearias?registar=1" className="btn btn-primary">Registar barbearia</Link>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
