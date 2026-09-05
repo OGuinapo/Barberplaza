@@ -134,4 +134,80 @@ export default function BarbeirosPage() {
         <Modal onClose={() => { setModalOpen(false); setMsg(null); setSelecionadas([]); }}>
           <form onSubmit={(e) => { e.preventDefault(); registar(new FormData(e.currentTarget)); }}>
             <h2 className="text-3xl mb-1">Criar portefólio</h2>
-            
+            <p className="text-sm text-muted mb-5">Os teus dados ficam visíveis para todas as barbearias no BarberPlaza.</p>
+            {msg && <div className="text-sm font-mono px-3 py-2.5 rounded-md mb-3 bg-[#f3d9d4] text-redDark">{msg.text}</div>}
+            <label className="block mb-3.5">
+              <span className="field-label">Nome completo</span>
+              <input name="nome" className="field-input" placeholder="Ex: Rui Almeida" />
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="block mb-3.5">
+                <span className="field-label">Cidade</span>
+                <select name="cidade" className="field-input">{CIDADES.map((c) => <option key={c}>{c}</option>)}</select>
+              </label>
+              <label className="block mb-3.5">
+                <span className="field-label">Anos de experiência</span>
+                <input name="anos" className="field-input" placeholder="Ex: 5" />
+              </label>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="block mb-3.5">
+                <span className="field-label">Telemóvel</span>
+                <input name="telemovel" className="field-input" placeholder="9xx xxx xxx" />
+              </label>
+              <label className="block mb-3.5">
+                <span className="field-label">Email (opcional)</span>
+                <input name="email" className="field-input" placeholder="tu@email.com" />
+              </label>
+            </div>
+            <label className="block mb-3.5">
+              <span className="field-label">Especialidades</span>
+              <div className="flex flex-wrap gap-2">
+                {ESPECIALIDADES.map((e) => (
+                  <span
+                    key={e}
+                    className={`chip ${selecionadas.includes(e) ? 'on' : ''}`}
+                    onClick={() => setSelecionadas((cur) => cur.includes(e) ? cur.filter((x) => x !== e) : [...cur, e])}
+                  >
+                    {e}
+                  </span>
+                ))}
+              </div>
+            </label>
+            <label className="block mb-3.5">
+              <span className="field-label">Sobre ti</span>
+              <textarea name="bio" className="field-input min-h-[80px]" placeholder="Fala do teu percurso, estilo e o que procuras numa barbearia." />
+            </label>
+            <label className="block mb-3.5">
+              <span className="field-label">Link de uma foto (opcional)</span>
+              <input name="foto" className="field-input" placeholder="https://..." />
+            </label>
+            <button type="submit" className="btn btn-red w-full justify-center">Publicar portefólio</button>
+          </form>
+        </Modal>
+      )}
+
+      {verPerfil && (
+        <Modal onClose={() => setVerPerfil(null)}>
+          {verPerfil.foto_url ? (
+            <div className="w-full h-40 rounded-xl bg-navy bg-cover bg-center mb-3.5" style={{ backgroundImage: `url('${verPerfil.foto_url}')` }} />
+          ) : (
+            <div className="w-[74px] h-[74px] rounded-full flex items-center justify-center font-display text-2xl text-white mb-3.5" style={{ background: colorFor(verPerfil.nome) }}>
+              {initials(verPerfil.nome)}
+            </div>
+          )}
+          <h2 className="text-3xl">{verPerfil.nome}</h2>
+          <p className="text-sm text-muted mb-3">{verPerfil.cidade}{verPerfil.anos_experiencia ? ` · ${verPerfil.anos_experiencia} anos de experiência` : ''}</p>
+          <div className="flex flex-wrap gap-1.5 mb-4">
+            {(verPerfil.especialidades ?? []).map((e) => <span key={e} className="tag">{e}</span>)}
+          </div>
+          <p className="text-sm text-[#3a372f]">{verPerfil.bio}</p>
+          <div className="mt-4 pt-4 border-t border-line font-mono text-sm space-y-1">
+            <div>📞 {verPerfil.telemovel}</div>
+            {verPerfil.email && <div>✉️ {verPerfil.email}</div>}
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
