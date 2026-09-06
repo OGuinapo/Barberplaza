@@ -18,13 +18,8 @@ export default function Header() {
     <header className="sticky top-0 z-40 bg-paper border-b border-line">
       <div className="max-w-[1100px] mx-auto px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
         <Link href="/" className="flex items-center gap-2.5 font-display text-2xl tracking-wide">
-          <div className="w-2.5 h-8 rounded-[5px] overflow-hidden border border-ink pole-stripe pole-anim" />
-          <div>
-            BARBERPLAZA
-            <small className="block font-mono text-[9px] tracking-[0.14em] text-red font-semibold -mt-0.5">
-              PORTUGAL · BETA
-            </small>
-          </div>
+          <div className="w-2.5 h-7 rounded-[5px] overflow-hidden border border-ink pole-stripe pole-anim shrink-0" />
+          BARBERPLAZA
         </Link>
 
         <nav className="flex gap-1 flex-wrap">
@@ -42,10 +37,4 @@ export default function Header() {
         </nav>
 
         <div className="flex gap-2">
-          <Link href="/barbeiros?registar=1" className="btn">Sou barbeiro</Link>
-          <Link href="/barbearias?registar=1" className="btn btn-primary">Sou barbearia</Link>
-        </div>
-      </div>
-    </header>
-  );
-}
+          
