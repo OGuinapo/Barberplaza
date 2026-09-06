@@ -47,15 +47,10 @@ export type Formacao = {
   criado_em: string;
 };
 
-export const CIDADES = [
-  'Lisboa', 'Porto', 'Braga', 'Coimbra', 'Faro', 'Setúbal', 'Aveiro',
-  'Guimarães', 'Leiria', 'Viseu', 'Évora', 'Funchal', 'Ponta Delgada',
-  'Cascais', 'Almada', 'Outra',
-];
-
 export const ESPECIALIDADES = [
-  'Corte clássico', 'Degradê / Fade', 'Barba & navalha', 'Coloração',
-  'Alisamento', 'Desenho de barba', 'Corte infantil', 'Tratamentos capilares',
+  'Corte clássico', 'Degradê / Fade', 'Barba & navalha', 'Barbear tradicional a toalha quente',
+  'Coloração', 'Alisamento', 'Desenho de barba', 'Corte infantil', 'Tratamentos capilares',
+  'Sobrancelhas', 'Micropigmentação capilar', 'Penteados e styling', 'Texturização', 'Extensões de cabelo',
 ];
 
 export const TIPOS_VAGA = [
