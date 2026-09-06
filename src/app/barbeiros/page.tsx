@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { CIDADES, ESPECIALIDADES, type Barbeiro } from '@/lib/types';
+import { ESPECIALIDADES, type Barbeiro } from '@/lib/types';
 import Modal from '@/components/Modal';
+import DistritoConcelhoPicker from '@/components/DistritoConcelhoPicker';
 
 function initials(name: string) {
   return name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
@@ -18,9 +19,13 @@ function colorFor(name: string) {
 export default function BarbeirosPage() {
   const [lista, setLista] = useState<Barbeiro[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filtroCidade, setFiltroCidade] = useState('Todas');
+  const [filtroDistrito, setFiltroDistrito] = useState('Todos');
+  const [filtroConcelho, setFiltroConcelho] = useState('Todos');
   const [filtroEsp, setFiltroEsp] = useState('Todas');
   const [modalOpen, setModalOpen] = useState(false);
+
+  const [formDistrito, setFormDistrito] = useState('');
+  const [formConcelho, setFormConcelho] = useState('');
 
   useEffect(() => {
     if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('registar')) {
@@ -47,28 +52,30 @@ export default function BarbeirosPage() {
 
   async function registar(form: FormData) {
     const nome = (form.get('nome') as string)?.trim();
+    const distrito = form.get('distrito') as string;
     const cidade = form.get('cidade') as string;
     const telemovel = (form.get('telemovel') as string)?.trim();
-    const email = (form.get('email') as string)?.trim() || null;
+    const email = (form.get('email') as string)?.trim();
     const anos_experiencia = (form.get('anos') as string)?.trim() || null;
     const bio = (form.get('bio') as string)?.trim();
     const foto_url = (form.get('foto') as string)?.trim() || null;
 
-    if (!nome || !cidade || !telemovel || !bio) {
-      setMsg({ text: 'Preenche nome, cidade, telemóvel e uma breve descrição.', ok: false });
+    if (!nome || !distrito || !cidade || !telemovel || !email || !bio) {
+      setMsg({ text: 'Preenche nome, distrito, concelho, telemóvel, email e uma breve descrição.', ok: false });
       return;
     }
-    const { error } = await supabase.from('barbeiros').insert({
-      nome, cidade, telemovel, email, anos_experiencia, bio, foto_url,
+    const { data, error } = await supabase.from('barbeiros').insert({
+      nome, cidade, distrito, telemovel, email, anos_experiencia, bio, foto_url,
       especialidades: selecionadas,
-    });
+    }).select().single();
     if (error) { setMsg({ text: 'Algo correu mal: ' + error.message, ok: false }); return; }
-    setModalOpen(false); setMsg(null); setSelecionadas([]);
-    load();
+    setLista((cur) => [data as Barbeiro, ...cur]);
+    setModalOpen(false); setMsg(null); setSelecionadas([]); setFormDistrito(''); setFormConcelho('');
   }
 
   const listaFiltrada = lista.filter(
-    (b) => (filtroCidade === 'Todas' || b.cidade === filtroCidade) &&
+    (b) => (filtroDistrito === 'Todos' || b.distrito === filtroDistrito) &&
+           (filtroConcelho === 'Todos' || b.cidade === filtroConcelho) &&
            (filtroEsp === 'Todas' || b.especialidades?.includes(filtroEsp))
   );
 
@@ -83,10 +90,13 @@ export default function BarbeirosPage() {
       </div>
 
       <div className="flex gap-2.5 flex-wrap mb-6">
-        <select className="field-input w-auto font-mono text-xs uppercase" value={filtroCidade} onChange={(e) => setFiltroCidade(e.target.value)}>
-          <option value="Todas">Todas as cidades</option>
-          {CIDADES.map((c) => <option key={c} value={c}>{c}</option>)}
-        </select>
+        <DistritoConcelhoPicker
+          distrito={filtroDistrito}
+          concelho={filtroConcelho}
+          onDistritoChange={setFiltroDistrito}
+          onConcelhoChange={setFiltroConcelho}
+          allowTodos
+        />
         <select className="field-input w-auto font-mono text-xs uppercase" value={filtroEsp} onChange={(e) => setFiltroEsp(e.target.value)}>
           <option value="Todas">Todas as especialidades</option>
           {ESPECIALIDADES.map((e) => <option key={e} value={e}>{e}</option>)}
@@ -98,7 +108,7 @@ export default function BarbeirosPage() {
       ) : listaFiltrada.length === 0 ? (
         <div className="text-center py-16 border-[1.5px] border-dashed border-line rounded-xl">
           <h3 className="text-2xl mb-2">Ainda não há barbeiros aqui</h3>
-          <p className="text-sm text-muted mb-4">Cria o primeiro portefólio e aparece para as barbearias desta cidade.</p>
+          <p className="text-sm text-muted mb-4">Cria o primeiro portefólio e aparece para as barbearias desta zona.</p>
           <button className="btn btn-primary" onClick={() => setModalOpen(true)}>Criar portefólio</button>
         </div>
       ) : (
@@ -114,7 +124,7 @@ export default function BarbeirosPage() {
                 </div>
                 <div>
                   <h4 className="font-bold text-base">{b.nome}</h4>
-                  <div className="font-mono text-[11px] text-muted">{b.cidade}{b.anos_experiencia ? ` · ${b.anos_experiencia} anos exp.` : ''}</div>
+                  <div className="font-mono text-[11px] text-muted">{b.cidade}{b.distrito ? `, ${b.distrito}` : ''}{b.anos_experiencia ? ` · ${b.anos_experiencia} anos exp.` : ''}</div>
                 </div>
               </div>
               <p className="text-sm text-[#4a4536] line-clamp-3">{b.bio}</p>
@@ -131,7 +141,7 @@ export default function BarbeirosPage() {
       )}
 
       {modalOpen && (
-        <Modal onClose={() => { setModalOpen(false); setMsg(null); setSelecionadas([]); }}>
+        <Modal onClose={() => { setModalOpen(false); setMsg(null); setSelecionadas([]); setFormDistrito(''); setFormConcelho(''); }}>
           <form onSubmit={(e) => { e.preventDefault(); registar(new FormData(e.currentTarget)); }}>
             <h2 className="text-3xl mb-1">Criar portefólio</h2>
             <p className="text-sm text-muted mb-5">Os teus dados ficam visíveis para todas as barbearias no BarberPlaza.</p>
@@ -142,8 +152,13 @@ export default function BarbeirosPage() {
             </label>
             <div className="grid grid-cols-2 gap-3">
               <label className="block mb-3.5">
-                <span className="field-label">Cidade</span>
-                <select name="cidade" className="field-input">{CIDADES.map((c) => <option key={c}>{c}</option>)}</select>
+                <span className="field-label">Distrito</span>
+                <DistritoConcelhoPicker
+                  distrito={formDistrito} concelho={formConcelho}
+                  onDistritoChange={setFormDistrito} onConcelhoChange={setFormConcelho}
+                  distritoName="distrito" concelhoName="cidade"
+                  className="field-input"
+                />
               </label>
               <label className="block mb-3.5">
                 <span className="field-label">Anos de experiência</span>
@@ -156,8 +171,8 @@ export default function BarbeirosPage() {
                 <input name="telemovel" className="field-input" placeholder="9xx xxx xxx" />
               </label>
               <label className="block mb-3.5">
-                <span className="field-label">Email (opcional)</span>
-                <input name="email" className="field-input" placeholder="tu@email.com" />
+                <span className="field-label">Email</span>
+                <input name="email" type="email" className="field-input" placeholder="tu@email.com" />
               </label>
             </div>
             <label className="block mb-3.5">
@@ -197,7 +212,7 @@ export default function BarbeirosPage() {
             </div>
           )}
           <h2 className="text-3xl">{verPerfil.nome}</h2>
-          <p className="text-sm text-muted mb-3">{verPerfil.cidade}{verPerfil.anos_experiencia ? ` · ${verPerfil.anos_experiencia} anos de experiência` : ''}</p>
+          <p className="text-sm text-muted mb-3">{verPerfil.cidade}{verPerfil.distrito ? `, ${verPerfil.distrito}` : ''}{verPerfil.anos_experiencia ? ` · ${verPerfil.anos_experiencia} anos de experiência` : ''}</p>
           <div className="flex flex-wrap gap-1.5 mb-4">
             {(verPerfil.especialidades ?? []).map((e) => <span key={e} className="tag">{e}</span>)}
           </div>
