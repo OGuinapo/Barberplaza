@@ -2,6 +2,7 @@ export type Barbeiro = {
   id: string;
   nome: string;
   cidade: string;
+  distrito: string | null;
   telemovel: string;
   email: string | null;
   anos_experiencia: string | null;
@@ -15,6 +16,7 @@ export type Barbearia = {
   id: string;
   nome: string;
   cidade: string;
+  distrito: string | null;
   morada: string | null;
   telemovel: string;
   email: string | null;
@@ -29,6 +31,7 @@ export type Vaga = {
   titulo: string;
   tipo: string;
   cidade: string;
+  distrito: string | null;
   descricao: string;
   criado_em: string;
   barbearias?: { nome: string } | null; // via join
@@ -40,6 +43,7 @@ export type Formacao = {
   tipo: string;
   organizador: string;
   cidade: string;
+  distrito: string | null;
   data: string | null;
   preco: string | null;
   link: string | null;
