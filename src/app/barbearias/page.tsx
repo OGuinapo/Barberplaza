@@ -2,15 +2,20 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { CIDADES, type Barbearia, type Vaga } from '@/lib/types';
+import { type Barbearia, type Vaga } from '@/lib/types';
 import Modal from '@/components/Modal';
+import DistritoConcelhoPicker from '@/components/DistritoConcelhoPicker';
 
 export default function BarbeariasPage() {
   const [lista, setLista] = useState<Barbearia[]>([]);
   const [vagas, setVagas] = useState<Vaga[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filtroCidade, setFiltroCidade] = useState('Todas');
+  const [filtroDistrito, setFiltroDistrito] = useState('Todos');
+  const [filtroConcelho, setFiltroConcelho] = useState('Todos');
   const [modalOpen, setModalOpen] = useState(false);
+
+  const [formDistrito, setFormDistrito] = useState('');
+  const [formConcelho, setFormConcelho] = useState('');
 
   useEffect(() => {
     if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('registar')) {
@@ -40,24 +45,28 @@ export default function BarbeariasPage() {
 
   async function registar(form: FormData) {
     const nome = (form.get('nome') as string)?.trim();
+    const distrito = form.get('distrito') as string;
     const cidade = form.get('cidade') as string;
     const morada = (form.get('morada') as string)?.trim() || null;
     const telemovel = (form.get('telemovel') as string)?.trim();
-    const email = (form.get('email') as string)?.trim() || null;
+    const email = (form.get('email') as string)?.trim();
     const sobre = (form.get('sobre') as string)?.trim();
     const foto_url = (form.get('foto') as string)?.trim() || null;
 
-    if (!nome || !cidade || !telemovel || !sobre) {
-      setMsg({ text: 'Preenche nome, cidade, telemóvel e uma breve descrição.', ok: false });
+    if (!nome || !distrito || !cidade || !telemovel || !email || !sobre) {
+      setMsg({ text: 'Preenche nome, distrito, concelho, telemóvel, email e uma breve descrição.', ok: false });
       return;
     }
-    const { error } = await supabase.from('barbearias').insert({ nome, cidade, morada, telemovel, email, sobre, foto_url });
+    const { data, error } = await supabase.from('barbearias').insert({ nome, cidade, distrito, morada, telemovel, email, sobre, foto_url }).select().single();
     if (error) { setMsg({ text: 'Algo correu mal: ' + error.message, ok: false }); return; }
-    setModalOpen(false); setMsg(null);
-    load();
+    setLista((cur) => [data as Barbearia, ...cur]);
+    setModalOpen(false); setMsg(null); setFormDistrito(''); setFormConcelho('');
   }
 
-  const listaFiltrada = lista.filter((b) => filtroCidade === 'Todas' || b.cidade === filtroCidade);
+  const listaFiltrada = lista.filter(
+    (b) => (filtroDistrito === 'Todos' || b.distrito === filtroDistrito) &&
+           (filtroConcelho === 'Todos' || b.cidade === filtroConcelho)
+  );
   const vagasDe = (id: string) => vagas.filter((v) => v.barbearia_id === id);
 
   return (
@@ -71,10 +80,13 @@ export default function BarbeariasPage() {
       </div>
 
       <div className="flex gap-2.5 flex-wrap mb-6">
-        <select className="field-input w-auto font-mono text-xs uppercase" value={filtroCidade} onChange={(e) => setFiltroCidade(e.target.value)}>
-          <option value="Todas">Todas as cidades</option>
-          {CIDADES.map((c) => <option key={c} value={c}>{c}</option>)}
-        </select>
+        <DistritoConcelhoPicker
+          distrito={filtroDistrito}
+          concelho={filtroConcelho}
+          onDistritoChange={setFiltroDistrito}
+          onConcelhoChange={setFiltroConcelho}
+          allowTodos
+        />
       </div>
 
       {loading ? (
@@ -96,7 +108,7 @@ export default function BarbeariasPage() {
                   style={b.foto_url ? { backgroundImage: `url('${b.foto_url}')` } : undefined}
                 />
                 <h4 className="font-bold text-base">{b.nome}</h4>
-                <div className="font-mono text-[11px] text-muted">{b.cidade}{b.morada ? ` · ${b.morada}` : ''}</div>
+                <div className="font-mono text-[11px] text-muted">{b.cidade}{b.distrito ? `, ${b.distrito}` : ''}{b.morada ? ` · ${b.morada}` : ''}</div>
                 <p className="text-sm text-[#4a4536] line-clamp-3">{b.sobre}</p>
                 <span className="tag w-fit">{n} vaga{n === 1 ? '' : 's'} aberta{n === 1 ? '' : 's'}</span>
                 <div className="flex gap-2 mt-1">
@@ -110,7 +122,7 @@ export default function BarbeariasPage() {
       )}
 
       {modalOpen && (
-        <Modal onClose={() => { setModalOpen(false); setMsg(null); }}>
+        <Modal onClose={() => { setModalOpen(false); setMsg(null); setFormDistrito(''); setFormConcelho(''); }}>
           <form onSubmit={(e) => { e.preventDefault(); registar(new FormData(e.currentTarget)); }}>
             <h2 className="text-3xl mb-1">Registar barbearia</h2>
             <p className="text-sm text-muted mb-5">O teu perfil fica visível para todos os barbeiros no BarberPlaza.</p>
@@ -121,8 +133,13 @@ export default function BarbeariasPage() {
             </label>
             <div className="grid grid-cols-2 gap-3">
               <label className="block mb-3.5">
-                <span className="field-label">Cidade</span>
-                <select name="cidade" className="field-input">{CIDADES.map((c) => <option key={c}>{c}</option>)}</select>
+                <span className="field-label">Distrito</span>
+                <DistritoConcelhoPicker
+                  distrito={formDistrito} concelho={formConcelho}
+                  onDistritoChange={setFormDistrito} onConcelhoChange={setFormConcelho}
+                  distritoName="distrito" concelhoName="cidade"
+                  className="field-input"
+                />
               </label>
               <label className="block mb-3.5">
                 <span className="field-label">Morada (opcional)</span>
@@ -135,8 +152,8 @@ export default function BarbeariasPage() {
                 <input name="telemovel" className="field-input" placeholder="9xx xxx xxx" />
               </label>
               <label className="block mb-3.5">
-                <span className="field-label">Email (opcional)</span>
-                <input name="email" className="field-input" placeholder="geral@barbearia.pt" />
+                <span className="field-label">Email</span>
+                <input name="email" type="email" className="field-input" placeholder="geral@barbearia.pt" />
               </label>
             </div>
             <label className="block mb-3.5">
@@ -158,7 +175,7 @@ export default function BarbeariasPage() {
             <div className="w-full h-40 rounded-xl bg-navy bg-cover bg-center mb-3.5" style={{ backgroundImage: `url('${verPerfil.foto_url}')` }} />
           )}
           <h2 className="text-3xl">{verPerfil.nome}</h2>
-          <p className="text-sm text-muted mb-3">{verPerfil.cidade}{verPerfil.morada ? ` · ${verPerfil.morada}` : ''}</p>
+          <p className="text-sm text-muted mb-3">{verPerfil.cidade}{verPerfil.distrito ? `, ${verPerfil.distrito}` : ''}{verPerfil.morada ? ` · ${verPerfil.morada}` : ''}</p>
           <p className="text-sm text-[#3a372f]">{verPerfil.sobre}</p>
           <div className="mt-4 pt-4 border-t border-line font-mono text-sm space-y-1">
             <div>📞 {verPerfil.telemovel}</div>
