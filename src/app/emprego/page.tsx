@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { CIDADES, TIPOS_VAGA, type Vaga, type Barbearia } from '@/lib/types';
+import { TIPOS_VAGA, type Vaga, type Barbearia } from '@/lib/types';
 import Modal from '@/components/Modal';
+import DistritoConcelhoPicker from '@/components/DistritoConcelhoPicker';
 
 function timeAgo(iso: string) {
   const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
@@ -17,9 +18,13 @@ export default function EmpregoPage() {
   const [vagas, setVagas] = useState<Vaga[]>([]);
   const [barbearias, setBarbearias] = useState<Barbearia[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filtroCidade, setFiltroCidade] = useState('Todas');
+  const [filtroDistrito, setFiltroDistrito] = useState('Todos');
+  const [filtroConcelho, setFiltroConcelho] = useState('Todos');
   const [filtroTipo, setFiltroTipo] = useState('Todas');
   const [modal, setModal] = useState<'post' | 'candidatar' | null>(null);
+
+  const [formDistrito, setFormDistrito] = useState('');
+  const [formConcelho, setFormConcelho] = useState('');
 
   useEffect(() => {
     if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('publicar')) {
@@ -51,16 +56,18 @@ export default function EmpregoPage() {
     const barbearia_id = form.get('barbearia_id') as string;
     const titulo = (form.get('titulo') as string)?.trim();
     const tipo = form.get('tipo') as string;
+    const distrito = form.get('distrito') as string;
     const cidade = form.get('cidade') as string;
     const descricao = (form.get('descricao') as string)?.trim();
-    if (!barbearia_id || !titulo || !cidade || !descricao) {
+    if (!barbearia_id || !titulo || !distrito || !cidade || !descricao) {
       setMsg({ text: 'Preenche todos os campos, incluindo a barbearia responsável.', ok: false });
       return;
     }
-    const { error } = await supabase.from('vagas').insert({ barbearia_id, titulo, tipo, cidade, descricao });
+    const barbearia = barbearias.find((b) => b.id === barbearia_id);
+    const { data, error } = await supabase.from('vagas').insert({ barbearia_id, titulo, tipo, cidade, distrito, descricao }).select().single();
     if (error) { setMsg({ text: 'Algo correu mal: ' + error.message, ok: false }); return; }
-    setModal(null); setMsg(null);
-    load();
+    setVagas((cur) => [{ ...(data as Vaga), barbearias: { nome: barbearia?.nome ?? '' } }, ...cur]);
+    setModal(null); setMsg(null); setFormDistrito(''); setFormConcelho('');
   }
 
   async function enviarCandidatura(form: FormData) {
@@ -79,7 +86,8 @@ export default function EmpregoPage() {
   }
 
   const listaFiltrada = vagas.filter(
-    (v) => (filtroCidade === 'Todas' || v.cidade === filtroCidade) &&
+    (v) => (filtroDistrito === 'Todos' || v.distrito === filtroDistrito) &&
+           (filtroConcelho === 'Todos' || v.cidade === filtroConcelho) &&
            (filtroTipo === 'Todas' || v.tipo === filtroTipo)
   );
 
@@ -94,10 +102,13 @@ export default function EmpregoPage() {
       </div>
 
       <div className="flex gap-2.5 flex-wrap mb-6">
-        <select className="field-input w-auto font-mono text-xs uppercase" value={filtroCidade} onChange={(e) => setFiltroCidade(e.target.value)}>
-          <option value="Todas">Todas as cidades</option>
-          {CIDADES.map((c) => <option key={c} value={c}>{c}</option>)}
-        </select>
+        <DistritoConcelhoPicker
+          distrito={filtroDistrito}
+          concelho={filtroConcelho}
+          onDistritoChange={setFiltroDistrito}
+          onConcelhoChange={setFiltroConcelho}
+          allowTodos
+        />
         <select className="field-input w-auto font-mono text-xs uppercase" value={filtroTipo} onChange={(e) => setFiltroTipo(e.target.value)}>
           <option value="Todas">Todos os tipos</option>
           {TIPOS_VAGA.map((t) => <option key={t} value={t}>{t}</option>)}
@@ -109,7 +120,7 @@ export default function EmpregoPage() {
       ) : listaFiltrada.length === 0 ? (
         <div className="text-center py-16 border-[1.5px] border-dashed border-line rounded-xl">
           <h3 className="text-2xl mb-2">Ainda não há vagas aqui</h3>
-          <p className="text-sm text-muted mb-4">Sê a primeira barbearia a publicar uma oportunidade nesta cidade.</p>
+          <p className="text-sm text-muted mb-4">Sê a primeira barbearia a publicar uma oportunidade nesta zona.</p>
           <button className="btn btn-primary" onClick={() => setModal('post')}>Publicar vaga</button>
         </div>
       ) : (
@@ -119,7 +130,7 @@ export default function EmpregoPage() {
               <span className="tag !bg-navy !text-white w-fit">{v.tipo}</span>
               <h4 className="font-bold text-base">{v.titulo}</h4>
               <div className="font-mono text-[11px] text-muted">
-                {v.barbearias?.nome ?? 'Barbearia'} · {v.cidade} · {timeAgo(v.criado_em)}
+                {v.barbearias?.nome ?? 'Barbearia'} · {v.cidade}{v.distrito ? `, ${v.distrito}` : ''} · {timeAgo(v.criado_em)}
               </div>
               <p className="text-sm text-[#4a4536] line-clamp-3">{v.descricao}</p>
               <div className="flex gap-2 mt-1">
@@ -132,7 +143,7 @@ export default function EmpregoPage() {
       )}
 
       {modal === 'post' && (
-        <Modal onClose={() => { setModal(null); setMsg(null); }}>
+        <Modal onClose={() => { setModal(null); setMsg(null); setFormDistrito(''); setFormConcelho(''); }}>
           {barbearias.length === 0 ? (
             <>
               <h2 className="text-3xl mb-1">Publicar vaga</h2>
@@ -160,8 +171,13 @@ export default function EmpregoPage() {
                   <select name="tipo" className="field-input">{TIPOS_VAGA.map((t) => <option key={t}>{t}</option>)}</select>
                 </label>
                 <label className="block mb-3.5">
-                  <span className="field-label">Cidade</span>
-                  <select name="cidade" className="field-input">{CIDADES.map((c) => <option key={c}>{c}</option>)}</select>
+                  <span className="field-label">Distrito</span>
+                  <DistritoConcelhoPicker
+                    distrito={formDistrito} concelho={formConcelho}
+                    onDistritoChange={setFormDistrito} onConcelhoChange={setFormConcelho}
+                    distritoName="distrito" concelhoName="cidade"
+                    className="field-input"
+                  />
                 </label>
               </div>
               <label className="block mb-3.5">
