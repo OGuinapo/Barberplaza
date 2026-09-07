@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useAuth } from '@/lib/AuthProvider';
 
 const TABS = [
   { href: '/', label: 'Início' },
@@ -13,6 +14,7 @@ const TABS = [
 
 export default function Header() {
   const pathname = usePathname();
+  const { user, loading, signOut } = useAuth();
 
   return (
     <header className="sticky top-0 z-40 bg-paper border-b border-line">
@@ -36,9 +38,15 @@ export default function Header() {
           ))}
         </nav>
 
-        <div className="flex gap-2">
-          <Link href="/barbeiros?registar=1" className="btn">Sou barbeiro</Link>
-          <Link href="/barbearias?registar=1" className="btn btn-primary">Sou barbearia</Link>
+        <div className="flex gap-2 items-center">
+          {loading ? null : user ? (
+            <>
+              <span className="font-mono text-[11px] text-muted hidden sm:inline">{user.email}</span>
+              <button onClick={() => signOut()} className="btn btn-sm">Sair</button>
+            </>
+          ) : (
+            <Link href="/entrar" className="btn btn-primary">Entrar / Registar</Link>
+          )}
         </div>
       </div>
     </header>
