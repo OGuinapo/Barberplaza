@@ -1,5 +1,6 @@
 export type Barbeiro = {
   id: string;
+  user_id: string | null;
   nome: string;
   cidade: string;
   distrito: string | null;
@@ -14,6 +15,7 @@ export type Barbeiro = {
 
 export type Barbearia = {
   id: string;
+  user_id: string | null;
   nome: string;
   cidade: string;
   distrito: string | null;
