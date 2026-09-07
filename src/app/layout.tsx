@@ -3,6 +3,7 @@ import { Bebas_Neue, Inter, IBM_Plex_Mono } from 'next/font/google';
 import './globals.css';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import { AuthProvider } from '@/lib/AuthProvider';
 
 const bebas = Bebas_Neue({
   weight: '400',
@@ -38,9 +39,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="pt-PT" className={`${bebas.variable} ${inter.variable} ${plexMono.variable}`}>
       <body className="font-body">
-        <Header />
-        <main>{children}</main>
-        <Footer />
+        <AuthProvider>
+          <Header />
+          <main>{children}</main>
+          <Footer />
+        </AuthProvider>
       </body>
     </html>
   );
