@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { CIDADES, TIPOS_FORMACAO, type Formacao } from '@/lib/types';
+import { TIPOS_FORMACAO, type Formacao } from '@/lib/types';
 import Modal from '@/components/Modal';
+import DistritoConcelhoPicker from '@/components/DistritoConcelhoPicker';
 
 function formatData(iso: string | null) {
   if (!iso) return 'Data a anunciar';
@@ -16,6 +17,10 @@ export default function FormacaoPage() {
   const [filtroTipo, setFiltroTipo] = useState('Todos');
   const [modalOpen, setModalOpen] = useState(false);
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+
+  const [ehOnline, setEhOnline] = useState(false);
+  const [formDistrito, setFormDistrito] = useState('');
+  const [formConcelho, setFormConcelho] = useState('');
 
   async function load() {
     setLoading(true);
@@ -35,20 +40,22 @@ export default function FormacaoPage() {
     const titulo = (form.get('titulo') as string)?.trim();
     const tipo = form.get('tipo') as string;
     const organizador = (form.get('organizador') as string)?.trim();
-    const cidade = form.get('cidade') as string;
+    const online = form.get('online') === 'on';
+    const distrito = online ? null : (form.get('distrito') as string);
+    const cidade = online ? 'Online' : (form.get('cidade') as string);
     const data = (form.get('data') as string) || null;
     const preco = (form.get('preco') as string)?.trim() || null;
     const link = (form.get('link') as string)?.trim() || null;
     const descricao = (form.get('descricao') as string)?.trim();
 
     if (!titulo || !organizador || !cidade || !descricao) {
-      setMsg({ text: 'Preenche pelo menos o título, organizador, cidade e descrição.', ok: false });
+      setMsg({ text: 'Preenche pelo menos o título, organizador, localização e descrição.', ok: false });
       return;
     }
-    const { error } = await supabase.from('formacoes').insert({ titulo, tipo, organizador, cidade, data, preco, link, descricao });
+    const { data: novo, error } = await supabase.from('formacoes').insert({ titulo, tipo, organizador, cidade, distrito, data, preco, link, descricao }).select().single();
     if (error) { setMsg({ text: 'Algo correu mal: ' + error.message, ok: false }); return; }
-    setModalOpen(false); setMsg(null);
-    load();
+    setLista((cur) => [...cur, novo as Formacao].sort((a, b) => new Date(a.data || 0).getTime() - new Date(b.data || 0).getTime()));
+    setModalOpen(false); setMsg(null); setEhOnline(false); setFormDistrito(''); setFormConcelho('');
   }
 
   const listaFiltrada = lista.filter((f) => filtroTipo === 'Todos' || f.tipo === filtroTipo);
@@ -86,7 +93,7 @@ export default function FormacaoPage() {
               <div key={f.id} className="card border-l-4 border-l-brass">
                 <span className="tag !bg-brass !text-white w-fit">{f.tipo}</span>
                 <h4 className="font-bold text-base">{f.titulo}</h4>
-                <div className="font-mono text-[11px] text-muted">{f.organizador} · {f.cidade}</div>
+                <div className="font-mono text-[11px] text-muted">{f.organizador} · {f.cidade}{f.distrito ? `, ${f.distrito}` : ''}</div>
                 <div className="font-mono text-xs font-semibold text-navy">📅 {formatData(f.data)}</div>
                 <p className="text-sm text-[#4a4536] line-clamp-3">{f.descricao}</p>
                 <span className={`tag w-fit ${gratis ? '!text-[#2e5a2e] font-bold' : ''}`}>{gratis ? 'Grátis' : f.preco}</span>
@@ -101,7 +108,7 @@ export default function FormacaoPage() {
       )}
 
       {modalOpen && (
-        <Modal onClose={() => { setModalOpen(false); setMsg(null); }}>
+        <Modal onClose={() => { setModalOpen(false); setMsg(null); setEhOnline(false); setFormDistrito(''); setFormConcelho(''); }}>
           <form onSubmit={(e) => { e.preventDefault(); publicar(new FormData(e.currentTarget)); }}>
             <h2 className="text-3xl mb-1">Publicar curso ou evento</h2>
             <p className="text-sm text-muted mb-5">Escolas, marcas ou barbearias podem anunciar aqui formação para a comunidade.</p>
@@ -120,19 +127,32 @@ export default function FormacaoPage() {
                 <input name="organizador" className="field-input" placeholder="Escola, marca ou barbearia" />
               </label>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <label className="block mb-3.5">
-                <span className="field-label">Cidade</span>
-                <select name="cidade" className="field-input">
-                  <option value="Online">Online</option>
-                  {CIDADES.map((c) => <option key={c}>{c}</option>)}
-                </select>
-              </label>
-              <label className="block mb-3.5">
-                <span className="field-label">Data</span>
-                <input type="date" name="data" className="field-input" />
-              </label>
-            </div>
+
+            <label className="flex items-center gap-2 mb-3.5 cursor-pointer">
+              <input type="checkbox" name="online" checked={ehOnline} onChange={(e) => setEhOnline(e.target.checked)} />
+              <span className="field-label !mb-0">Este curso/evento é online</span>
+            </label>
+
+            {!ehOnline && (
+              <div className="grid grid-cols-2 gap-3">
+                <label className="block mb-3.5 col-span-2">
+                  <span className="field-label">Distrito e concelho</span>
+                  <div className="grid grid-cols-2 gap-3">
+                    <DistritoConcelhoPicker
+                      distrito={formDistrito} concelho={formConcelho}
+                      onDistritoChange={setFormDistrito} onConcelhoChange={setFormConcelho}
+                      distritoName="distrito" concelhoName="cidade"
+                      className="field-input"
+                    />
+                  </div>
+                </label>
+              </div>
+            )}
+
+            <label className="block mb-3.5">
+              <span className="field-label">Data</span>
+              <input type="date" name="data" className="field-input" />
+            </label>
             <label className="block mb-3.5">
               <span className="field-label">Preço (deixa em branco se for grátis)</span>
               <input name="preco" className="field-input" placeholder="Ex: Grátis ou 35€" />
