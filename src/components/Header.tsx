@@ -37,4 +37,10 @@ export default function Header() {
         </nav>
 
         <div className="flex gap-2">
-          
+          <Link href="/barbeiros?registar=1" className="btn">Sou barbeiro</Link>
+          <Link href="/barbearias?registar=1" className="btn btn-primary">Sou barbearia</Link>
+        </div>
+      </div>
+    </header>
+  );
+}
