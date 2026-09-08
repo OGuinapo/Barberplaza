@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/AuthProvider';
 import { ESPECIALIDADES, type Barbeiro } from '@/lib/types';
 import Modal from '@/components/Modal';
 import DistritoConcelhoPicker from '@/components/DistritoConcelhoPicker';
+import PhotoUploader from '@/components/PhotoUploader';
 
 function initials(name: string) {
   return name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
@@ -16,6 +17,9 @@ function colorFor(name: string) {
   let h = 0;
   for (const c of name) h = (h * 31 + c.charCodeAt(0)) % 997;
   return AVATAR_COLORS[h % AVATAR_COLORS.length];
+}
+function capa(b: Barbeiro) {
+  return (b.fotos && b.fotos[0]) || b.foto_url || null;
 }
 
 export default function BarbeirosPage() {
@@ -32,6 +36,7 @@ export default function BarbeirosPage() {
   const [formDistrito, setFormDistrito] = useState('');
   const [formConcelho, setFormConcelho] = useState('');
   const [selecionadas, setSelecionadas] = useState<string[]>([]);
+  const [fotos, setFotos] = useState<string[]>([]);
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const [verPerfil, setVerPerfil] = useState<Barbeiro | null>(null);
 
@@ -52,8 +57,9 @@ export default function BarbeirosPage() {
       setFormDistrito(meuPerfil.distrito ?? '');
       setFormConcelho(meuPerfil.cidade ?? '');
       setSelecionadas(meuPerfil.especialidades ?? []);
+      setFotos(meuPerfil.fotos?.length ? meuPerfil.fotos : (meuPerfil.foto_url ? [meuPerfil.foto_url] : []));
     } else {
-      setFormDistrito(''); setFormConcelho(''); setSelecionadas([]);
+      setFormDistrito(''); setFormConcelho(''); setSelecionadas([]); setFotos([]);
     }
     setModalOpen(true);
   }
@@ -74,25 +80,24 @@ export default function BarbeirosPage() {
     const email = (form.get('email') as string)?.trim();
     const anos_experiencia = (form.get('anos') as string)?.trim() || null;
     const bio = (form.get('bio') as string)?.trim();
-    const foto_url = (form.get('foto') as string)?.trim() || null;
 
     if (!nome || !distrito || !cidade || !telemovel || !email || !bio) {
       setMsg({ text: 'Preenche nome, distrito, concelho, telemóvel, email e uma breve descrição.', ok: false });
       return;
     }
 
+    const payload = {
+      nome, cidade, distrito, telemovel, email, anos_experiencia, bio,
+      especialidades: selecionadas,
+      fotos, foto_url: fotos[0] ?? null,
+    };
+
     if (meuPerfil) {
-      const { data, error } = await supabase.from('barbeiros').update({
-        nome, cidade, distrito, telemovel, email, anos_experiencia, bio, foto_url,
-        especialidades: selecionadas,
-      }).eq('id', meuPerfil.id).select().single();
+      const { data, error } = await supabase.from('barbeiros').update(payload).eq('id', meuPerfil.id).select().single();
       if (error) { setMsg({ text: 'Algo correu mal: ' + error.message, ok: false }); return; }
       setLista((cur) => cur.map((b) => (b.id === meuPerfil.id ? (data as Barbeiro) : b)));
     } else {
-      const { data, error } = await supabase.from('barbeiros').insert({
-        nome, cidade, distrito, telemovel, email, anos_experiencia, bio, foto_url,
-        especialidades: selecionadas, user_id: user.id,
-      }).select().single();
+      const { data, error } = await supabase.from('barbeiros').insert({ ...payload, user_id: user.id }).select().single();
       if (error) { setMsg({ text: 'Algo correu mal: ' + error.message, ok: false }); return; }
       setLista((cur) => [data as Barbeiro, ...cur]);
     }
@@ -143,14 +148,15 @@ export default function BarbeirosPage() {
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {listaFiltrada.map((b) => {
             const isMine = user && b.user_id === user.id;
+            const foto = capa(b);
             return (
               <div key={b.id} className="card">
                 <div className="flex gap-3 items-center">
                   <div
                     className="w-[54px] h-[54px] rounded-full shrink-0 flex items-center justify-center font-display text-xl text-white border-2 border-ink bg-cover bg-center"
-                    style={b.foto_url ? { backgroundImage: `url('${b.foto_url}')`, color: 'transparent' } : { background: colorFor(b.nome) }}
+                    style={foto ? { backgroundImage: `url('${foto}')`, color: 'transparent' } : { background: colorFor(b.nome) }}
                   >
-                    {!b.foto_url && initials(b.nome)}
+                    {!foto && initials(b.nome)}
                   </div>
                   <div>
                     <h4 className="font-bold text-base">{b.nome} {isMine && <span className="tag ml-1">Tu</span>}</h4>
@@ -226,8 +232,8 @@ export default function BarbeirosPage() {
               <textarea name="bio" defaultValue={meuPerfil?.bio} className="field-input min-h-[80px]" placeholder="Fala do teu percurso, estilo e o que procuras numa barbearia." />
             </label>
             <label className="block mb-3.5">
-              <span className="field-label">Link de uma foto (opcional)</span>
-              <input name="foto" defaultValue={meuPerfil?.foto_url ?? ''} className="field-input" placeholder="https://..." />
+              <span className="field-label">Fotos do portefólio</span>
+              <PhotoUploader fotos={fotos} onChange={setFotos} />
             </label>
             <button type="submit" className="btn btn-red w-full justify-center">
               {meuPerfil ? 'Guardar alterações' : 'Publicar portefólio'}
@@ -238,8 +244,14 @@ export default function BarbeirosPage() {
 
       {verPerfil && (
         <Modal onClose={() => setVerPerfil(null)}>
-          {verPerfil.foto_url ? (
-            <div className="w-full h-40 rounded-xl bg-navy bg-cover bg-center mb-3.5" style={{ backgroundImage: `url('${verPerfil.foto_url}')` }} />
+          {verPerfil.fotos && verPerfil.fotos.length > 0 ? (
+            <div className="grid grid-cols-3 gap-2 mb-3.5">
+              {verPerfil.fotos.map((url) => (
+                <div key={url} className="aspect-square rounded-lg overflow-hidden bg-navy">
+                  <img src={url} alt="" className="w-full h-full object-cover" />
+                </div>
+              ))}
+            </div>
           ) : (
             <div className="w-[74px] h-[74px] rounded-full flex items-center justify-center font-display text-2xl text-white mb-3.5" style={{ background: colorFor(verPerfil.nome) }}>
               {initials(verPerfil.nome)}
