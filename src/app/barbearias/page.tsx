@@ -7,6 +7,11 @@ import { useAuth } from '@/lib/AuthProvider';
 import { type Barbearia, type Vaga } from '@/lib/types';
 import Modal from '@/components/Modal';
 import DistritoConcelhoPicker from '@/components/DistritoConcelhoPicker';
+import PhotoUploader from '@/components/PhotoUploader';
+
+function capa(b: Barbearia) {
+  return (b.fotos && b.fotos[0]) || b.foto_url || null;
+}
 
 export default function BarbeariasPage() {
   const router = useRouter();
@@ -21,6 +26,7 @@ export default function BarbeariasPage() {
 
   const [formDistrito, setFormDistrito] = useState('');
   const [formConcelho, setFormConcelho] = useState('');
+  const [fotos, setFotos] = useState<string[]>([]);
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const [verPerfil, setVerPerfil] = useState<Barbearia | null>(null);
 
@@ -44,8 +50,9 @@ export default function BarbeariasPage() {
     if (meuPerfil) {
       setFormDistrito(meuPerfil.distrito ?? '');
       setFormConcelho(meuPerfil.cidade ?? '');
+      setFotos(meuPerfil.fotos?.length ? meuPerfil.fotos : (meuPerfil.foto_url ? [meuPerfil.foto_url] : []));
     } else {
-      setFormDistrito(''); setFormConcelho('');
+      setFormDistrito(''); setFormConcelho(''); setFotos([]);
     }
     setModalOpen(true);
   }
@@ -66,23 +73,23 @@ export default function BarbeariasPage() {
     const telemovel = (form.get('telemovel') as string)?.trim();
     const email = (form.get('email') as string)?.trim();
     const sobre = (form.get('sobre') as string)?.trim();
-    const foto_url = (form.get('foto') as string)?.trim() || null;
 
     if (!nome || !distrito || !cidade || !telemovel || !email || !sobre) {
       setMsg({ text: 'Preenche nome, distrito, concelho, telemóvel, email e uma breve descrição.', ok: false });
       return;
     }
 
+    const payload = {
+      nome, cidade, distrito, morada, telemovel, email, sobre,
+      fotos, foto_url: fotos[0] ?? null,
+    };
+
     if (meuPerfil) {
-      const { data, error } = await supabase.from('barbearias').update({
-        nome, cidade, distrito, morada, telemovel, email, sobre, foto_url,
-      }).eq('id', meuPerfil.id).select().single();
+      const { data, error } = await supabase.from('barbearias').update(payload).eq('id', meuPerfil.id).select().single();
       if (error) { setMsg({ text: 'Algo correu mal: ' + error.message, ok: false }); return; }
       setLista((cur) => cur.map((b) => (b.id === meuPerfil.id ? (data as Barbearia) : b)));
     } else {
-      const { data, error } = await supabase.from('barbearias').insert({
-        nome, cidade, distrito, morada, telemovel, email, sobre, foto_url, user_id: user.id,
-      }).select().single();
+      const { data, error } = await supabase.from('barbearias').insert({ ...payload, user_id: user.id }).select().single();
       if (error) { setMsg({ text: 'Algo correu mal: ' + error.message, ok: false }); return; }
       setLista((cur) => [data as Barbearia, ...cur]);
     }
@@ -130,11 +137,12 @@ export default function BarbeariasPage() {
           {listaFiltrada.map((b) => {
             const n = vagasDe(b.id).length;
             const isMine = user && b.user_id === user.id;
+            const foto = capa(b);
             return (
               <div key={b.id} className="card">
                 <div
                   className="h-[90px] rounded-lg bg-navy bg-cover bg-center"
-                  style={b.foto_url ? { backgroundImage: `url('${b.foto_url}')` } : undefined}
+                  style={foto ? { backgroundImage: `url('${foto}')` } : undefined}
                 />
                 <h4 className="font-bold text-base">{b.nome} {isMine && <span className="tag ml-1">Tu</span>}</h4>
                 <div className="font-mono text-[11px] text-muted">{b.cidade}{b.distrito ? `, ${b.distrito}` : ''}{b.morada ? ` · ${b.morada}` : ''}</div>
@@ -191,8 +199,8 @@ export default function BarbeariasPage() {
               <textarea name="sobre" defaultValue={meuPerfil?.sobre} className="field-input min-h-[80px]" placeholder="Ambiente, equipa, tipo de clientela, o que procuras num barbeiro." />
             </label>
             <label className="block mb-3.5">
-              <span className="field-label">Link de uma foto de capa (opcional)</span>
-              <input name="foto" defaultValue={meuPerfil?.foto_url ?? ''} className="field-input" placeholder="https://..." />
+              <span className="field-label">Fotos do espaço</span>
+              <PhotoUploader fotos={fotos} onChange={setFotos} />
             </label>
             <button type="submit" className="btn btn-primary w-full justify-center">
               {meuPerfil ? 'Guardar alterações' : 'Publicar perfil'}
@@ -203,9 +211,15 @@ export default function BarbeariasPage() {
 
       {verPerfil && (
         <Modal onClose={() => setVerPerfil(null)}>
-          {verPerfil.foto_url && (
-            <div className="w-full h-40 rounded-xl bg-navy bg-cover bg-center mb-3.5" style={{ backgroundImage: `url('${verPerfil.foto_url}')` }} />
-          )}
+          {verPerfil.fotos && verPerfil.fotos.length > 0 ? (
+            <div className="grid grid-cols-3 gap-2 mb-3.5">
+              {verPerfil.fotos.map((url) => (
+                <div key={url} className="aspect-square rounded-lg overflow-hidden bg-navy">
+                  <img src={url} alt="" className="w-full h-full object-cover" />
+                </div>
+              ))}
+            </div>
+          ) : null}
           <h2 className="text-3xl">{verPerfil.nome}</h2>
           <p className="text-sm text-muted mb-3">{verPerfil.cidade}{verPerfil.distrito ? `, ${verPerfil.distrito}` : ''}{verPerfil.morada ? ` · ${verPerfil.morada}` : ''}</p>
           <p className="text-sm text-[#3a372f]">{verPerfil.sobre}</p>
