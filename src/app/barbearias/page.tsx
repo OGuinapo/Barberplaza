@@ -73,6 +73,13 @@ export default function BarbeariasPage() {
     const telemovel = (form.get('telemovel') as string)?.trim();
     const email = (form.get('email') as string)?.trim();
     const sobre = (form.get('sobre') as string)?.trim();
+    let instagram = (form.get('instagram') as string)?.trim() || null;
+    if (instagram) {
+      instagram = instagram
+        .replace(/^https?:\/\/(www\.)?instagram\.com\//i, '')
+        .replace(/^@/, '')
+        .replace(/\/$/, '');
+    }
 
     if (!nome || !distrito || !cidade || !telemovel || !email || !sobre) {
       setMsg({ text: 'Preenche nome, distrito, concelho, telemóvel, email e uma breve descrição.', ok: false });
@@ -80,7 +87,7 @@ export default function BarbeariasPage() {
     }
 
     const payload = {
-      nome, cidade, distrito, morada, telemovel, email, sobre,
+      nome, cidade, distrito, morada, telemovel, email, sobre, instagram,
       fotos, foto_url: fotos[0] ?? null,
     };
 
@@ -199,6 +206,10 @@ export default function BarbeariasPage() {
               <textarea name="sobre" defaultValue={meuPerfil?.sobre} className="field-input min-h-[80px]" placeholder="Ambiente, equipa, tipo de clientela, o que procuras num barbeiro." />
             </label>
             <label className="block mb-3.5">
+              <span className="field-label">Instagram (opcional)</span>
+              <input name="instagram" defaultValue={meuPerfil?.instagram ?? ''} className="field-input" placeholder="@abarbearia" />
+            </label>
+            <label className="block mb-3.5">
               <span className="field-label">Fotos do espaço</span>
               <PhotoUploader fotos={fotos} onChange={setFotos} />
             </label>
@@ -226,6 +237,11 @@ export default function BarbeariasPage() {
           <div className="mt-4 pt-4 border-t border-line font-mono text-sm space-y-1">
             <div>📞 {verPerfil.telemovel}</div>
             {verPerfil.email && <div>✉️ {verPerfil.email}</div>}
+            {verPerfil.instagram && (
+              <div>
+                📷 <a href={`https://instagram.com/${verPerfil.instagram}`} target="_blank" rel="noopener" className="text-red font-semibold">@{verPerfil.instagram}</a>
+              </div>
+            )}
           </div>
           {vagasDe(verPerfil.id).length > 0 && (
             <div className="mt-4">
