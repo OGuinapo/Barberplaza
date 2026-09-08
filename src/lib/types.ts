@@ -9,6 +9,7 @@ export type Barbeiro = {
   anos_experiencia: string | null;
   bio: string;
   foto_url: string | null;
+  fotos: string[] | null;
   especialidades: string[];
   criado_em: string;
 };
@@ -24,6 +25,7 @@ export type Barbearia = {
   email: string | null;
   sobre: string;
   foto_url: string | null;
+  fotos: string[] | null;
   criado_em: string;
 };
 
