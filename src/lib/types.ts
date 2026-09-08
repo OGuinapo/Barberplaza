@@ -10,6 +10,7 @@ export type Barbeiro = {
   bio: string;
   foto_url: string | null;
   fotos: string[] | null;
+  instagram: string | null;
   especialidades: string[];
   criado_em: string;
 };
@@ -26,6 +27,7 @@ export type Barbearia = {
   sobre: string;
   foto_url: string | null;
   fotos: string[] | null;
+  instagram: string | null;
   criado_em: string;
 };
 
