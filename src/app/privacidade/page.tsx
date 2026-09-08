@@ -7,14 +7,14 @@ export default function PrivacidadePage() {
     <div className="max-w-[720px] mx-auto px-6 py-16">
       <span className="font-mono text-[11px] tracking-wide text-red font-semibold block mb-1">Legal</span>
       <h1 className="text-4xl mb-6">Política de Privacidade</h1>
-      <p className="text-sm text-muted mb-8">Última atualização: [PREENCHER DATA]</p>
+      <p className="text-sm text-muted mb-8">Última atualização: 7 de setembro de 2026</p>
 
       <div className="space-y-6 text-sm text-[#3a372f] leading-relaxed">
         <section>
           <h2 className="text-xl font-bold text-ink mb-2">1. Quem trata os teus dados</h2>
           <p>
-            O BarberPlaza (barberplaza.net) é operado por [O TEU NOME OU NOME DA EMPRESA, E NIF SE APLICÁVEL].
-            Para questões sobre privacidade e proteção de dados, contacta-nos através de [O TEU EMAIL DE CONTACTO].
+            Para questões sobre privacidade e proteção de dados relacionadas com o BarberPlaza (barberplaza.net),
+            contacta-nos através de barberplaza@outlook.pt.
           </p>
         </section>
 
@@ -76,7 +76,7 @@ export default function PrivacidadePage() {
             <li>Apresentar queixa junto da CNPD (Comissão Nacional de Proteção de Dados), em www.cnpd.pt.</li>
           </ul>
           <p className="mt-2">
-            Para exercer qualquer um destes direitos, contacta-nos em [O TEU EMAIL DE CONTACTO].
+            Para exercer qualquer um destes direitos, contacta-nos em barberplaza@outlook.pt.
           </p>
         </section>
 
