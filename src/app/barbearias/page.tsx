@@ -103,10 +103,11 @@ export default function BarbeariasPage() {
     setModalOpen(false); setMsg(null);
   }
 
-  const listaFiltrada = lista.filter(
+  const pesquisaAtiva = filtroDistrito !== 'Todos';
+  const listaFiltrada = pesquisaAtiva ? lista.filter(
     (b) => (filtroDistrito === 'Todos' || b.distrito === filtroDistrito) &&
            (filtroConcelho === 'Todos' || b.cidade === filtroConcelho)
-  );
+  ) : [];
   const vagasDe = (id: string) => vagas.filter((v) => v.barbearia_id === id);
 
   return (
@@ -133,6 +134,11 @@ export default function BarbeariasPage() {
 
       {loading ? (
         <p className="font-mono text-sm text-muted text-center py-16">A carregar barbearias…</p>
+      ) : !pesquisaAtiva ? (
+        <div className="text-center py-16 border-[1.5px] border-dashed border-line rounded-xl">
+          <h3 className="text-2xl mb-2">Escolhe uma localização</h3>
+          <p className="text-sm text-muted">Seleciona o distrito acima (e opcionalmente o concelho) para veres as barbearias dessa zona.</p>
+        </div>
       ) : listaFiltrada.length === 0 ? (
         <div className="text-center py-16 border-[1.5px] border-dashed border-line rounded-xl">
           <h3 className="text-2xl mb-2">Ainda não há barbearias aqui</h3>
