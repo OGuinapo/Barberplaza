@@ -148,7 +148,7 @@ export default function BarbeariasPage() {
             return (
               <div key={b.id} className="card">
                 <div
-                  className="h-[90px] rounded-lg bg-navy bg-cover bg-center"
+                  className="aspect-[4/3] rounded-lg bg-navy bg-cover bg-center"
                   style={foto ? { backgroundImage: `url('${foto}')` } : undefined}
                 />
                 <h4 className="font-bold text-base">{b.nome} {isMine && <span className="tag ml-1">Tu</span>}</h4>
