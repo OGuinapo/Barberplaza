@@ -39,6 +39,7 @@ export default function BarbeirosPage() {
   const [fotos, setFotos] = useState<string[]>([]);
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const [verPerfil, setVerPerfil] = useState<Barbeiro | null>(null);
+  const [fotoAmpliada, setFotoAmpliada] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
@@ -264,9 +265,14 @@ export default function BarbeirosPage() {
           {verPerfil.fotos && verPerfil.fotos.length > 0 ? (
             <div className="grid grid-cols-3 gap-2 mb-3.5">
               {verPerfil.fotos.map((url) => (
-                <div key={url} className="aspect-square rounded-lg overflow-hidden bg-navy">
+                <button
+                  key={url}
+                  type="button"
+                  onClick={() => setFotoAmpliada(url)}
+                  className="aspect-square rounded-lg overflow-hidden bg-navy cursor-zoom-in"
+                >
                   <img src={url} alt="" className="w-full h-full object-cover" />
-                </div>
+                </button>
               ))}
             </div>
           ) : (
@@ -290,6 +296,22 @@ export default function BarbeirosPage() {
             )}
           </div>
         </Modal>
+      )}
+
+      {fotoAmpliada && (
+        <div
+          className="fixed inset-0 bg-black/90 z-[200] flex items-center justify-center p-4"
+          onClick={() => setFotoAmpliada(null)}
+        >
+          <img src={fotoAmpliada} alt="" className="max-w-full max-h-full object-contain rounded-lg" />
+          <button
+            onClick={() => setFotoAmpliada(null)}
+            aria-label="Fechar"
+            className="absolute top-4 right-4 text-white text-3xl leading-none"
+          >
+            ×
+          </button>
+        </div>
       )}
     </div>
   );
