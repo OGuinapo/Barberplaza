@@ -111,11 +111,12 @@ export default function BarbeirosPage() {
     setModalOpen(false); setMsg(null);
   }
 
-  const listaFiltrada = lista.filter(
+  const pesquisaAtiva = filtroDistrito !== 'Todos';
+  const listaFiltrada = pesquisaAtiva ? lista.filter(
     (b) => (filtroDistrito === 'Todos' || b.distrito === filtroDistrito) &&
            (filtroConcelho === 'Todos' || b.cidade === filtroConcelho) &&
            (filtroEsp === 'Todas' || b.especialidades?.includes(filtroEsp))
-  );
+  ) : [];
 
   return (
     <div className="max-w-[1100px] mx-auto px-6 py-10">
@@ -145,6 +146,11 @@ export default function BarbeirosPage() {
 
       {loading ? (
         <p className="font-mono text-sm text-muted text-center py-16">A carregar barbeiros…</p>
+      ) : !pesquisaAtiva ? (
+        <div className="text-center py-16 border-[1.5px] border-dashed border-line rounded-xl">
+          <h3 className="text-2xl mb-2">Escolhe uma localização</h3>
+          <p className="text-sm text-muted">Seleciona o distrito acima (e opcionalmente o concelho) para veres os barbeiros dessa zona.</p>
+        </div>
       ) : listaFiltrada.length === 0 ? (
         <div className="text-center py-16 border-[1.5px] border-dashed border-line rounded-xl">
           <h3 className="text-2xl mb-2">Ainda não há barbeiros aqui</h3>
