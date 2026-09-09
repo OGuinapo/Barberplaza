@@ -32,7 +32,7 @@ export default function DistritoConcelhoPicker({
         value={distrito}
         onChange={(e) => { onDistritoChange(e.target.value); onConcelhoChange(allowTodos ? 'Todos' : ''); }}
       >
-        {allowTodos && <option value="Todos">Todos os distritos</option>}
+        {allowTodos && <option value="Todos">Escolhe o distrito</option>}
         {!allowTodos && <option value="" disabled>Distrito</option>}
         {DISTRITOS.map((d) => <option key={d} value={d}>{d}</option>)}
       </select>
@@ -43,7 +43,7 @@ export default function DistritoConcelhoPicker({
         onChange={(e) => onConcelhoChange(e.target.value)}
         disabled={!temDistrito}
       >
-        {allowTodos && <option value="Todos">Todos os concelhos</option>}
+        {allowTodos && <option value="Todos">Escolhe o concelho</option>}
         {!allowTodos && <option value="" disabled>Concelho</option>}
         {concelhos.map((c) => <option key={c} value={c}>{c}</option>)}
       </select>
