@@ -51,9 +51,11 @@ export type Formacao = {
   cidade: string;
   distrito: string | null;
   data: string | null;
+  hora: string | null;
   preco: string | null;
   link: string | null;
   descricao: string;
+  fotos: string[] | null;
   criado_em: string;
 };
 
