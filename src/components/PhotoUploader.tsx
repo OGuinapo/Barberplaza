@@ -5,9 +5,9 @@ import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/lib/AuthProvider';
 
 const MAX_FOTOS = 6;
-const MAX_MB_ORIGINAL = 30; // limite do ficheiro tal como sai do telemóvel, antes de comprimir
-const MAX_DIMENSAO = 1920;  // maior lado da foto depois de comprimida, em pixels
-const QUALIDADE = 0.82;     // qualidade JPEG (0-1)
+const MAX_MB_ORIGINAL = 30;
+const MAX_DIMENSAO = 1920;
+const QUALIDADE = 0.82;
 
 function comprimirImagem(file: File): Promise<Blob> {
   return new Promise((resolve, reject) => {
@@ -54,6 +54,8 @@ export default function PhotoUploader({
   const { user } = useAuth();
   const [uploading, setUploading] = useState(false);
   const [erro, setErro] = useState('');
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [overIndex, setOverIndex] = useState<number | null>(null);
 
   async function handleFiles(e: React.ChangeEvent<HTMLInputElement>) {
     setErro('');
@@ -75,7 +77,6 @@ export default function PhotoUploader({
       try {
         ficheiroFinal = await comprimirImagem(file);
       } catch {
-        // se a compressão falhar por algum motivo, envia o ficheiro original na mesma
         ficheiroFinal = file;
       }
       const path = `${user.id}/${crypto.randomUUID()}.jpg`;
@@ -98,14 +99,59 @@ export default function PhotoUploader({
     onChange(fotos.filter((f) => f !== url));
   }
 
+  function moverFoto(de: number, para: number) {
+    if (de === para) return;
+    const arr = [...fotos];
+    const [item] = arr.splice(de, 1);
+    arr.splice(para, 0, item);
+    onChange(arr);
+  }
+
+  function handlePointerDown(e: React.PointerEvent, i: number) {
+    setDragIndex(i);
+    setOverIndex(i);
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  }
+
+  function handlePointerMove(e: React.PointerEvent) {
+    if (dragIndex === null) return;
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    const alvo = el?.closest('[data-idx]');
+    if (alvo) {
+      const idx = Number(alvo.getAttribute('data-idx'));
+      if (!Number.isNaN(idx)) setOverIndex(idx);
+    }
+  }
+
+  function handlePointerUp() {
+    if (dragIndex !== null && overIndex !== null && overIndex !== dragIndex) {
+      moverFoto(dragIndex, overIndex);
+    }
+    setDragIndex(null);
+    setOverIndex(null);
+  }
+
   return (
     <div>
       <div className="flex flex-wrap gap-2 mb-2">
-        {fotos.map((url) => (
-          <div key={url} className="relative w-20 h-20 rounded-lg overflow-hidden border border-line">
-            <img src={url} alt="" className="w-full h-full object-cover" />
+        {fotos.map((url, i) => (
+          <div
+            key={url}
+            data-idx={i}
+            onPointerDown={(e) => handlePointerDown(e, i)}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            className={`relative w-20 h-20 rounded-lg overflow-hidden border-2 touch-none select-none cursor-grab active:cursor-grabbing transition-transform ${
+              dragIndex === i ? 'opacity-60 scale-95 border-red' : overIndex === i && dragIndex !== null ? 'border-red' : 'border-line'
+            }`}
+          >
+            <img src={url} alt="" className="w-full h-full object-cover pointer-events-none" draggable={false} />
+            {i === 0 && (
+              <span className="absolute bottom-0.5 left-0.5 bg-ink/80 text-white text-[9px] font-mono px-1.5 py-0.5 rounded">CAPA</span>
+            )}
             <button
               type="button"
+              onPointerDown={(e) => e.stopPropagation()}
               onClick={() => remover(url)}
               className="absolute top-0.5 right-0.5 bg-ink/80 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs"
             >
@@ -121,7 +167,9 @@ export default function PhotoUploader({
         )}
       </div>
       {erro && <p className="text-xs text-red font-mono">{erro}</p>}
-      <p className="text-xs text-muted font-mono">Até {MAX_FOTOS} fotos. Comprimidas automaticamente ao enviar.</p>
+      <p className="text-xs text-muted font-mono">
+        Até {MAX_FOTOS} fotos. Mantém o dedo na foto e arrasta para reordenar — a primeira é a capa.
+      </p>
     </div>
   );
 }
