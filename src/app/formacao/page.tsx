@@ -19,6 +19,8 @@ export default function FormacaoPage() {
   const [lista, setLista] = useState<Formacao[]>([]);
   const [loading, setLoading] = useState(true);
   const [filtroTipo, setFiltroTipo] = useState('Todos');
+  const [filtroDistrito, setFiltroDistrito] = useState('');
+  const [filtroConcelho, setFiltroConcelho] = useState('Todos');
   const [modalOpen, setModalOpen] = useState(false);
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const [verFormacao, setVerFormacao] = useState<Formacao | null>(null);
@@ -71,7 +73,12 @@ export default function FormacaoPage() {
     setModalOpen(false); setMsg(null); setEhOnline(false); setEhGratuito(false); setFormDistrito(''); setFormConcelho(''); setFotos([]);
   }
 
-  const listaFiltrada = lista.filter((f) => filtroTipo === 'Todos' || f.tipo === filtroTipo);
+  const pesquisaAtiva = filtroDistrito !== '';
+  const listaFiltrada = pesquisaAtiva ? lista.filter(
+    (f) => (filtroTipo === 'Todos' || f.tipo === filtroTipo) &&
+           (filtroDistrito === 'Todos' || f.distrito === filtroDistrito) &&
+           (filtroConcelho === 'Todos' || f.cidade === filtroConcelho)
+  ) : [];
 
   return (
     <div className="max-w-[1100px] mx-auto px-6 py-10">
@@ -84,6 +91,13 @@ export default function FormacaoPage() {
       </div>
 
       <div className="flex gap-2.5 flex-wrap mb-6">
+        <DistritoConcelhoPicker
+          distrito={filtroDistrito}
+          concelho={filtroConcelho}
+          onDistritoChange={setFiltroDistrito}
+          onConcelhoChange={setFiltroConcelho}
+          allowTodos
+        />
         <select className="field-input w-auto font-mono text-xs uppercase" value={filtroTipo} onChange={(e) => setFiltroTipo(e.target.value)}>
           <option value="Todos">Todos os tipos</option>
           {TIPOS_FORMACAO.map((t) => <option key={t} value={t}>{t}</option>)}
@@ -92,6 +106,11 @@ export default function FormacaoPage() {
 
       {loading ? (
         <p className="font-mono text-sm text-muted text-center py-16">A carregar…</p>
+      ) : !pesquisaAtiva ? (
+        <div className="text-center py-16 border-[1.5px] border-dashed border-line rounded-xl">
+          <h3 className="text-2xl mb-2">Escolhe uma localização</h3>
+          <p className="text-sm text-muted">Seleciona o distrito acima — ou escolhe "Todos os distritos" para veres toda a formação marcada.</p>
+        </div>
       ) : listaFiltrada.length === 0 ? (
         <div className="text-center py-16 border-[1.5px] border-dashed border-line rounded-xl">
           <h3 className="text-2xl mb-2">Ainda não há formação marcada</h3>
