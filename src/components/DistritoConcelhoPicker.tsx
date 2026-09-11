@@ -21,8 +21,8 @@ export default function DistritoConcelhoPicker({
   allowTodos?: boolean;
   className?: string;
 }) {
-  const temDistrito = distrito && distrito !== 'Todos';
-  const concelhos = temDistrito ? (CONCELHOS_POR_DISTRITO[distrito] ?? []) : [];
+  const temDistritoEspecifico = distrito !== '' && distrito !== 'Todos';
+  const concelhos = temDistritoEspecifico ? (CONCELHOS_POR_DISTRITO[distrito] ?? []) : [];
 
   return (
     <>
@@ -32,7 +32,8 @@ export default function DistritoConcelhoPicker({
         value={distrito}
         onChange={(e) => { onDistritoChange(e.target.value); onConcelhoChange(allowTodos ? 'Todos' : ''); }}
       >
-        {allowTodos && <option value="Todos">Escolhe o distrito</option>}
+        {allowTodos && <option value="" disabled>Escolhe o distrito</option>}
+        {allowTodos && <option value="Todos">Todos os distritos</option>}
         {!allowTodos && <option value="" disabled>Distrito</option>}
         {DISTRITOS.map((d) => <option key={d} value={d}>{d}</option>)}
       </select>
@@ -41,9 +42,9 @@ export default function DistritoConcelhoPicker({
         className={className}
         value={concelho}
         onChange={(e) => onConcelhoChange(e.target.value)}
-        disabled={!temDistrito}
+        disabled={!temDistritoEspecifico}
       >
-        {allowTodos && <option value="Todos">Escolhe o concelho</option>}
+        {allowTodos && <option value="Todos">Todos os concelhos</option>}
         {!allowTodos && <option value="" disabled>Concelho</option>}
         {concelhos.map((c) => <option key={c} value={c}>{c}</option>)}
       </select>
