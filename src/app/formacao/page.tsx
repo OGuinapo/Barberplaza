@@ -25,6 +25,7 @@ export default function FormacaoPage() {
   const [fotoAmpliada, setFotoAmpliada] = useState<string | null>(null);
 
   const [ehOnline, setEhOnline] = useState(false);
+  const [ehGratuito, setEhGratuito] = useState(false);
   const [formDistrito, setFormDistrito] = useState('');
   const [formConcelho, setFormConcelho] = useState('');
   const [fotos, setFotos] = useState<string[]>([]);
@@ -52,7 +53,9 @@ export default function FormacaoPage() {
     const cidade = online ? 'Online' : (form.get('cidade') as string);
     const data = (form.get('data') as string) || null;
     const hora = (form.get('hora') as string) || null;
-    const preco = (form.get('preco') as string)?.trim() || null;
+    const gratuito = form.get('gratuito') === 'on';
+    const valor = (form.get('valor') as string)?.trim();
+    const preco = gratuito ? 'Grátis' : (valor ? `${valor}€` : null);
     const link = (form.get('link') as string)?.trim() || null;
     const descricao = (form.get('descricao') as string)?.trim();
 
@@ -65,7 +68,7 @@ export default function FormacaoPage() {
     }).select().single();
     if (error) { setMsg({ text: 'Algo correu mal: ' + error.message, ok: false }); return; }
     setLista((cur) => [...cur, novo as Formacao].sort((a, b) => new Date(a.data || 0).getTime() - new Date(b.data || 0).getTime()));
-    setModalOpen(false); setMsg(null); setEhOnline(false); setFormDistrito(''); setFormConcelho(''); setFotos([]);
+    setModalOpen(false); setMsg(null); setEhOnline(false); setEhGratuito(false); setFormDistrito(''); setFormConcelho(''); setFotos([]);
   }
 
   const listaFiltrada = lista.filter((f) => filtroTipo === 'Todos' || f.tipo === filtroTipo);
@@ -124,7 +127,7 @@ export default function FormacaoPage() {
       )}
 
       {modalOpen && (
-        <Modal onClose={() => { setModalOpen(false); setMsg(null); setEhOnline(false); setFormDistrito(''); setFormConcelho(''); setFotos([]); }}>
+        <Modal onClose={() => { setModalOpen(false); setMsg(null); setEhOnline(false); setEhGratuito(false); setFormDistrito(''); setFormConcelho(''); setFotos([]); }}>
           <form onSubmit={(e) => { e.preventDefault(); publicar(new FormData(e.currentTarget)); }}>
             <h2 className="text-3xl mb-1">Publicar curso ou evento</h2>
             <p className="text-sm text-muted mb-5">Escolas, marcas ou barbearias podem anunciar aqui formação para a comunidade.</p>
@@ -175,10 +178,30 @@ export default function FormacaoPage() {
                 <input type="time" name="hora" className="field-input" />
               </label>
             </div>
-            <label className="block mb-3.5">
-              <span className="field-label">Preço (deixa em branco se for grátis)</span>
-              <input name="preco" className="field-input" placeholder="Ex: Grátis ou 35€" />
+
+            <label className="flex items-center gap-2 mb-3.5 cursor-pointer">
+              <input type="checkbox" name="gratuito" checked={ehGratuito} onChange={(e) => setEhGratuito(e.target.checked)} />
+              <span className="field-label !mb-0">Este curso/evento é grátis</span>
             </label>
+
+            {!ehGratuito && (
+              <label className="block mb-3.5">
+                <span className="field-label">Preço</span>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    name="valor"
+                    min="0"
+                    step="0.01"
+                    inputMode="decimal"
+                    className="field-input"
+                    placeholder="Ex: 35"
+                  />
+                  <span className="font-mono text-lg font-semibold text-muted">€</span>
+                </div>
+              </label>
+            )}
+
             <label className="block mb-3.5">
               <span className="field-label">Link de inscrição (opcional)</span>
               <input name="link" className="field-input" placeholder="https://..." />
