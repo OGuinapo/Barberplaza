@@ -18,7 +18,7 @@ export default function EmpregoPage() {
   const [vagas, setVagas] = useState<Vaga[]>([]);
   const [barbearias, setBarbearias] = useState<Barbearia[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filtroDistrito, setFiltroDistrito] = useState('Todos');
+  const [filtroDistrito, setFiltroDistrito] = useState('');
   const [filtroConcelho, setFiltroConcelho] = useState('Todos');
   const [filtroTipo, setFiltroTipo] = useState('Todas');
   const [modal, setModal] = useState<'post' | 'candidatar' | null>(null);
@@ -48,7 +48,8 @@ export default function EmpregoPage() {
 
   async function removerVaga(id: string) {
     if (!confirm('Remover esta vaga?')) return;
-    await supabase.from('vagas').delete().eq('id', id);
+    const { error } = await supabase.from('vagas').delete().eq('id', id);
+    if (error) { alert('Não foi possível remover: ' + error.message); return; }
     setVagas((cur) => cur.filter((x) => x.id !== id));
   }
 
@@ -85,11 +86,12 @@ export default function EmpregoPage() {
     setTimeout(() => { setModal(null); setMsg(null); }, 1200);
   }
 
-  const listaFiltrada = vagas.filter(
+  const pesquisaAtiva = filtroDistrito !== '';
+  const listaFiltrada = pesquisaAtiva ? vagas.filter(
     (v) => (filtroDistrito === 'Todos' || v.distrito === filtroDistrito) &&
            (filtroConcelho === 'Todos' || v.cidade === filtroConcelho) &&
            (filtroTipo === 'Todas' || v.tipo === filtroTipo)
-  );
+  ) : [];
 
   return (
     <div className="max-w-[1100px] mx-auto px-6 py-10">
@@ -117,6 +119,11 @@ export default function EmpregoPage() {
 
       {loading ? (
         <p className="font-mono text-sm text-muted text-center py-16">A carregar vagas…</p>
+      ) : !pesquisaAtiva ? (
+        <div className="text-center py-16 border-[1.5px] border-dashed border-line rounded-xl">
+          <h3 className="text-2xl mb-2">Escolhe uma localização</h3>
+          <p className="text-sm text-muted">Seleciona o distrito acima — ou escolhe "Todos os distritos" para veres todas as vagas abertas.</p>
+        </div>
       ) : listaFiltrada.length === 0 ? (
         <div className="text-center py-16 border-[1.5px] border-dashed border-line rounded-xl">
           <h3 className="text-2xl mb-2">Ainda não há vagas aqui</h3>
