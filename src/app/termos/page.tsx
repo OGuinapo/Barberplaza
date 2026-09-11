@@ -7,7 +7,7 @@ export default function TermosPage() {
     <div className="max-w-[720px] mx-auto px-6 py-16">
       <span className="font-mono text-[11px] tracking-wide text-red font-semibold block mb-1">Legal</span>
       <h1 className="text-4xl mb-6">Termos de Utilização</h1>
-      <p className="text-sm text-muted mb-8">Última atualização: [PREENCHER DATA]</p>
+      <p className="text-sm text-muted mb-8">Última atualização: 7 de setembro de 2026</p>
 
       <div className="space-y-6 text-sm text-[#3a372f] leading-relaxed">
         <section>
@@ -88,7 +88,7 @@ export default function TermosPage() {
 
         <section>
           <h2 className="text-xl font-bold text-ink mb-2">10. Contacto</h2>
-          <p>Para questões sobre estes termos, contacta-nos em [O TEU EMAIL DE CONTACTO].</p>
+          <p>Para questões sobre estes termos, contacta-nos em barberplaza@outlook.pt.</p>
         </section>
       </div>
 
