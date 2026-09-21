@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/lib/AuthProvider';
 import { type Barbearia, type Vaga } from '@/lib/types';
@@ -230,9 +231,9 @@ export default function BarbeariasPage() {
                   key={url}
                   type="button"
                   onClick={() => setFotoAmpliada(url)}
-                  className="aspect-square rounded-lg overflow-hidden bg-navy cursor-zoom-in"
+                  className="relative aspect-square rounded-lg overflow-hidden bg-navy cursor-zoom-in"
                 >
-                  <img src={url} alt="" className="w-full h-full object-cover" />
+                  <Image src={url} alt="" fill sizes="200px" className="object-cover" />
                 </button>
               ))}
             </div>
@@ -270,7 +271,9 @@ export default function BarbeariasPage() {
           className="fixed inset-0 bg-black/90 z-[200] flex items-center justify-center p-4"
           onClick={() => setFotoAmpliada(null)}
         >
-          <img src={fotoAmpliada} alt="" className="max-w-full max-h-full object-contain rounded-lg" />
+          <div className="relative w-full h-full max-w-3xl max-h-[85vh]">
+            <Image src={fotoAmpliada} alt="" fill sizes="100vw" className="object-contain rounded-lg" />
+          </div>
           <button
             onClick={() => setFotoAmpliada(null)}
             aria-label="Fechar"
