@@ -40,7 +40,7 @@ export type Vaga = {
   distrito: string | null;
   descricao: string;
   criado_em: string;
-  barbearias?: { nome: string } | null; // via join
+  barbearias?: { nome: string; email?: string | null } | null; // via join
 };
 
 export type Formacao = {
@@ -57,6 +57,16 @@ export type Formacao = {
   descricao: string;
   fotos: string[] | null;
   criado_em: string;
+};
+
+export type Candidatura = {
+  id: string;
+  vaga_id: string;
+  nome: string;
+  contacto: string;
+  mensagem: string | null;
+  criado_em: string;
+  vagas?: { titulo: string; cidade: string; distrito: string | null; tipo: string } | null;
 };
 
 export const ESPECIALIDADES = [
