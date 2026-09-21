@@ -1,27 +1,6 @@
 import Link from 'next/link';
-import { supabase } from '@/lib/supabaseClient';
 
-export const revalidate = 60; // atualiza estatísticas a cada 60s
-
-async function getStats() {
-  const [{ count: nBarbeiros }, { count: nBarbearias }, { count: nVagas }, { count: nFormacoes }] =
-    await Promise.all([
-      supabase.from('barbeiros').select('*', { count: 'exact', head: true }),
-      supabase.from('barbearias').select('*', { count: 'exact', head: true }),
-      supabase.from('vagas').select('*', { count: 'exact', head: true }),
-      supabase.from('formacoes').select('*', { count: 'exact', head: true }),
-    ]);
-  return {
-    barbeiros: nBarbeiros ?? 0,
-    barbearias: nBarbearias ?? 0,
-    vagas: nVagas ?? 0,
-    formacoes: nFormacoes ?? 0,
-  };
-}
-
-export default async function HomePage() {
-  const stats = await getStats();
-
+export default function HomePage() {
   return (
     <div className="max-w-[1100px] mx-auto px-6">
       {/* HERO */}
@@ -44,21 +23,6 @@ export default async function HomePage() {
           </div>
         </div>
       </section>
-
-      {/* STATS */}
-      <div className="flex flex-col sm:flex-row border-t border-b border-line">
-        {[
-          ['Barbeiros inscritos', stats.barbeiros],
-          ['Barbearias registadas', stats.barbearias],
-          ['Vagas abertas', stats.vagas],
-          ['Cursos e eventos', stats.formacoes],
-        ].map(([label, val]) => (
-          <div key={label as string} className="flex-1 text-center py-4 border-b sm:border-b-0 sm:border-r border-line last:border-0">
-            <b className="block font-display text-4xl">{val}</b>
-            <span className="font-mono text-[10px] tracking-wide uppercase text-muted">{label}</span>
-          </div>
-        ))}
-      </div>
 
       {/* COMO FUNCIONA */}
       <section className="py-14">
