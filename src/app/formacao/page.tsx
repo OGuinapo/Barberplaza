@@ -19,7 +19,7 @@ export default function FormacaoPage() {
   const [lista, setLista] = useState<Formacao[]>([]);
   const [loading, setLoading] = useState(true);
   const [filtroTipo, setFiltroTipo] = useState('Todos');
-  const [filtroDistrito, setFiltroDistrito] = useState('');
+  const [filtroDistrito, setFiltroDistrito] = useState('Todos');
   const [filtroConcelho, setFiltroConcelho] = useState('Todos');
   const [modalOpen, setModalOpen] = useState(false);
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
@@ -73,12 +73,11 @@ export default function FormacaoPage() {
     setModalOpen(false); setMsg(null); setEhOnline(false); setEhGratuito(false); setFormDistrito(''); setFormConcelho(''); setFotos([]);
   }
 
-  const pesquisaAtiva = filtroDistrito !== '';
-  const listaFiltrada = pesquisaAtiva ? lista.filter(
+  const listaFiltrada = lista.filter(
     (f) => (filtroTipo === 'Todos' || f.tipo === filtroTipo) &&
            (filtroDistrito === 'Todos' || f.distrito === filtroDistrito) &&
            (filtroConcelho === 'Todos' || f.cidade === filtroConcelho)
-  ) : [];
+  );
 
   return (
     <div className="max-w-[1100px] mx-auto px-6 py-10">
@@ -106,11 +105,6 @@ export default function FormacaoPage() {
 
       {loading ? (
         <p className="font-mono text-sm text-muted text-center py-16">A carregar…</p>
-      ) : !pesquisaAtiva ? (
-        <div className="text-center py-16 border-[1.5px] border-dashed border-line rounded-xl">
-          <h3 className="text-2xl mb-2">Escolhe uma localização</h3>
-          <p className="text-sm text-muted">Seleciona o distrito acima — ou escolhe "Todos os distritos" para veres toda a formação marcada.</p>
-        </div>
       ) : listaFiltrada.length === 0 ? (
         <div className="text-center py-16 border-[1.5px] border-dashed border-line rounded-xl">
           <h3 className="text-2xl mb-2">Ainda não há formação marcada</h3>
