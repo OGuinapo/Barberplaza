@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import NextImage from 'next/image';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/lib/AuthProvider';
 
@@ -145,7 +146,7 @@ export default function PhotoUploader({
               dragIndex === i ? 'opacity-60 scale-95 border-red' : overIndex === i && dragIndex !== null ? 'border-red' : 'border-line'
             }`}
           >
-            <img src={url} alt="" className="w-full h-full object-cover pointer-events-none" draggable={false} />
+            <NextImage src={url} alt="" fill sizes="80px" className="object-cover pointer-events-none" draggable={false} />
             {i === 0 && (
               <span className="absolute bottom-0.5 left-0.5 bg-ink/80 text-white text-[9px] font-mono px-1.5 py-0.5 rounded">CAPA</span>
             )}
