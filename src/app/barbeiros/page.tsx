@@ -28,7 +28,7 @@ export default function BarbeirosPage() {
 
   const [lista, setLista] = useState<Barbeiro[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filtroDistrito, setFiltroDistrito] = useState('');
+  const [filtroDistrito, setFiltroDistrito] = useState('Todos');
   const [filtroConcelho, setFiltroConcelho] = useState('Todos');
   const [filtroEsp, setFiltroEsp] = useState('Todas');
   const [modalOpen, setModalOpen] = useState(false);
@@ -112,12 +112,11 @@ export default function BarbeirosPage() {
     setModalOpen(false); setMsg(null);
   }
 
-  const pesquisaAtiva = filtroDistrito !== '';
-  const listaFiltrada = pesquisaAtiva ? lista.filter(
+  const listaFiltrada = lista.filter(
     (b) => (filtroDistrito === 'Todos' || b.distrito === filtroDistrito) &&
            (filtroConcelho === 'Todos' || b.cidade === filtroConcelho) &&
            (filtroEsp === 'Todas' || b.especialidades?.includes(filtroEsp))
-  ) : [];
+  );
 
   return (
     <div className="max-w-[1100px] mx-auto px-6 py-10">
@@ -147,11 +146,6 @@ export default function BarbeirosPage() {
 
       {loading ? (
         <p className="font-mono text-sm text-muted text-center py-16">A carregar barbeiros…</p>
-      ) : !pesquisaAtiva ? (
-        <div className="text-center py-16 border-[1.5px] border-dashed border-line rounded-xl">
-          <h3 className="text-2xl mb-2">Escolhe uma localização</h3>
-          <p className="text-sm text-muted">Seleciona o distrito acima — ou escolhe "Todos os distritos" para veres todos os barbeiros inscritos.</p>
-        </div>
       ) : listaFiltrada.length === 0 ? (
         <div className="text-center py-16 border-[1.5px] border-dashed border-line rounded-xl">
           <h3 className="text-2xl mb-2">Ainda não há barbeiros aqui</h3>
