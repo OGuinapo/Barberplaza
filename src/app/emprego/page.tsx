@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
+import { useAuth } from '@/lib/AuthProvider';
 import { TIPOS_VAGA, type Vaga, type Barbearia } from '@/lib/types';
 import Modal from '@/components/Modal';
 import DistritoConcelhoPicker from '@/components/DistritoConcelhoPicker';
@@ -15,6 +17,7 @@ function timeAgo(iso: string) {
 }
 
 export default function EmpregoPage() {
+  const { user } = useAuth();
   const [vagas, setVagas] = useState<Vaga[]>([]);
   const [barbearias, setBarbearias] = useState<Barbearia[]>([]);
   const [loading, setLoading] = useState(true);
@@ -82,6 +85,20 @@ export default function EmpregoPage() {
     }
     const { error } = await supabase.from('candidaturas').insert({ vaga_id: vagaAlvo.id, nome, contacto, mensagem });
     if (error) { setMsg({ text: 'Algo correu mal: ' + error.message, ok: false }); return; }
+
+    const barbearia = barbearias.find((b) => b.id === vagaAlvo.barbearia_id);
+    if (barbearia?.email) {
+      try {
+        await fetch('/api/notificar-candidatura', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ to: barbearia.email, vagaTitulo: vagaAlvo.titulo, nome, contacto, mensagem }),
+        });
+      } catch {
+        // notificação é best-effort — a candidatura já ficou guardada de qualquer forma
+      }
+    }
+
     setMsg({ text: 'Candidatura enviada! A barbearia vai poder ver os teus dados.', ok: true });
     setTimeout(() => { setModal(null); setMsg(null); }, 1200);
   }
@@ -99,7 +116,10 @@ export default function EmpregoPage() {
           <span className="font-mono text-[11px] tracking-wide text-red font-semibold block mb-1">Bolsa de emprego</span>
           <h2 className="text-3xl">Emprego de barbeiro em Portugal</h2>
         </div>
-        <button className="btn btn-red" onClick={() => setModal('post')}>Publicar vaga</button>
+        <div className="flex gap-2">
+          {user && <Link href="/emprego/candidaturas" className="btn btn-sm">Candidaturas recebidas</Link>}
+          <button className="btn btn-red" onClick={() => setModal('post')}>Publicar vaga</button>
+        </div>
       </div>
 
       <div className="flex gap-2.5 flex-wrap mb-6">
@@ -129,7 +149,7 @@ export default function EmpregoPage() {
           {listaFiltrada.map((v) => (
             <div key={v.id} className="card border-l-4 border-l-red">
               <span className="tag !bg-navy !text-white w-fit">{v.tipo}</span>
-              <h4 className="font-bold text-base">{v.titulo}</h4>
+              <Link href={`/emprego/${v.id}`} className="font-bold text-base hover:text-red">{v.titulo}</Link>
               <div className="font-mono text-[11px] text-muted">
                 {v.barbearias?.nome ?? 'Barbearia'} · {v.cidade}{v.distrito ? `, ${v.distrito}` : ''} · {timeAgo(v.criado_em)}
               </div>
