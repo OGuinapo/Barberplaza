@@ -33,7 +33,7 @@ export default function Modal({
       <div
         role="dialog"
         aria-modal="true"
-        className="relative w-full max-w-[560px] bg-white rounded-2xl shadow-2xl p-6 sm:p-8 my-auto"
+        className="relative w-full max-w-[560px] bg-white rounded-4xl shadow-2xl p-6 sm:p-8 my-auto"
       >
         <button
           type="button"
