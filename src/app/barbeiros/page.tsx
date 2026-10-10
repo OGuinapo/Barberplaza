@@ -1,27 +1,36 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/lib/AuthProvider';
 import { ESPECIALIDADES, type Barbeiro } from '@/lib/types';
+import { normalizarInstagram, pedirLogin, telemovelValido, emailValido } from '@/lib/utils';
 import Modal from '@/components/Modal';
-import DistritoConcelhoPicker from '@/components/DistritoConcelhoPicker';
 import PhotoUploader from '@/components/PhotoUploader';
+import DistritoConcelhoPicker from '@/components/DistritoConcelhoPicker';
+import { Avatar, Lightbox, PhotoGrid } from '@/components/Gallery';
+import { EmptyState, ErrorState, ResultsBar, SkeletonGrid } from '@/components/ListUI';
 
-function initials(name: string) {
-  return name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
-}
-const AVATAR_COLORS = ['#a3392b', '#2b3a4a', '#8a6a28', '#5c6b4f', '#6d4a5c'];
-function colorFor(name: string) {
-  let h = 0;
-  for (const c of name) h = (h * 31 + c.charCodeAt(0)) % 997;
-  return AVATAR_COLORS[h % AVATAR_COLORS.length];
-}
-function capa(b: Barbeiro) {
-  return (b.fotos && b.fotos[0]) || b.foto_url || null;
-}
+type Form = {
+  nome: string;
+  distrito: string;
+  cidade: string;
+  telemovel: string;
+  email: string;
+  anos_experiencia: string;
+  bio: string;
+  instagram: string;
+  especialidades: string[];
+  fotos: string[];
+};
+
+const FORM_VAZIO: Form = {
+  nome: '', distrito: '', cidade: '', telemovel: '', email: '',
+  anos_experiencia: '', bio: '', instagram: '', especialidades: [], fotos: [],
+};
+
+const ANOS = ['Menos de 1 ano', '1 a 3 anos', '3 a 5 anos', '5 a 10 anos', 'Mais de 10 anos'];
 
 export default function BarbeirosPage() {
   const router = useRouter();
@@ -29,286 +38,395 @@ export default function BarbeirosPage() {
 
   const [lista, setLista] = useState<Barbeiro[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filtroDistrito, setFiltroDistrito] = useState('Todos');
-  const [filtroConcelho, setFiltroConcelho] = useState('Todos');
-  const [filtroEsp, setFiltroEsp] = useState('Todas');
-  const [modalOpen, setModalOpen] = useState(false);
+  const [erroLista, setErroLista] = useState(false);
 
-  const [formDistrito, setFormDistrito] = useState('');
-  const [formConcelho, setFormConcelho] = useState('');
-  const [selecionadas, setSelecionadas] = useState<string[]>([]);
-  const [fotos, setFotos] = useState<string[]>([]);
-  const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
-  const [verPerfil, setVerPerfil] = useState<Barbeiro | null>(null);
-  const [fotoAmpliada, setFotoAmpliada] = useState<string | null>(null);
+  const [pesquisa, setPesquisa] = useState('');
+  const [distrito, setDistrito] = useState('Todos');
+  const [concelho, setConcelho] = useState('Todos');
+  const [especialidade, setEspecialidade] = useState('Todas');
 
-  async function load() {
+  const [detalhe, setDetalhe] = useState<Barbeiro | null>(null);
+  const [lightbox, setLightbox] = useState<{ fotos: string[]; i: number; nome: string } | null>(null);
+
+  const [formAberto, setFormAberto] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [form, setForm] = useState<Form>(FORM_VAZIO);
+  const [aGuardar, setAGuardar] = useState(false);
+  const [erroForm, setErroForm] = useState('');
+
+  const carregar = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase.from('barbeiros').select('*').order('criado_em', { ascending: false });
-    setLista(data ?? []);
+    setErroLista(false);
+    const { data, error } = await supabase
+      .from('barbeiros')
+      .select('*')
+      .order('criado_em', { ascending: false });
+    if (error) setErroLista(true);
+    else setLista((data ?? []) as Barbeiro[]);
     setLoading(false);
+  }, []);
+
+  useEffect(() => { carregar(); }, [carregar]);
+
+  const meuPerfil = useMemo(
+    () => (user ? lista.find((b) => b.user_id === user.id) ?? null : null),
+    [lista, user]
+  );
+
+  const abrirNovo = useCallback(() => {
+    setEditId(null);
+    setForm(FORM_VAZIO);
+    setErroForm('');
+    setFormAberto(true);
+  }, []);
+
+  function abrirEdicao(b: Barbeiro) {
+    setDetalhe(null);
+    setEditId(b.id);
+    setForm({
+      nome: b.nome,
+      distrito: b.distrito ?? '',
+      cidade: b.cidade,
+      telemovel: b.telemovel,
+      email: b.email ?? '',
+      anos_experiencia: b.anos_experiencia ?? '',
+      bio: b.bio,
+      instagram: b.instagram ?? '',
+      especialidades: b.especialidades ?? [],
+      fotos: b.fotos ?? (b.foto_url ? [b.foto_url] : []),
+    });
+    setErroForm('');
+    setFormAberto(true);
   }
-  useEffect(() => { load(); }, []);
 
-  const meuPerfil = user ? lista.find((b) => b.user_id === user.id) ?? null : null;
+  // ?registar=1 -> abre o formulário (ou pede login) quando já sabemos quem é o utilizador e a lista chegou.
+  useEffect(() => {
+    if (authLoading || loading) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('registar') !== '1') return;
+    window.history.replaceState(null, '', '/barbeiros');
+    if (!user) { router.push(pedirLogin('/barbeiros?registar=1')); return; }
+    if (meuPerfil) abrirEdicao(meuPerfil); else abrirNovo();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, loading]);
 
-  function abrirModal() {
-    if (authLoading) return;
-    if (!user) { router.push('/entrar?next=/barbeiros'); return; }
-    if (meuPerfil) {
-      setFormDistrito(meuPerfil.distrito ?? '');
-      setFormConcelho(meuPerfil.cidade ?? '');
-      setSelecionadas(meuPerfil.especialidades ?? []);
-      setFotos(meuPerfil.fotos?.length ? meuPerfil.fotos : (meuPerfil.foto_url ? [meuPerfil.foto_url] : []));
-    } else {
-      setFormDistrito(''); setFormConcelho(''); setSelecionadas([]); setFotos([]);
-    }
-    setModalOpen(true);
+  function aoClicarCriar() {
+    if (!user) { router.push(pedirLogin('/barbeiros?registar=1')); return; }
+    if (meuPerfil) abrirEdicao(meuPerfil); else abrirNovo();
   }
 
-  async function remover(id: string) {
-    if (!confirm('Remover este portefólio? Esta ação não pode ser desfeita.')) return;
-    const { error } = await supabase.from('barbeiros').delete().eq('id', id);
-    if (error) { alert('Não foi possível remover: ' + error.message); return; }
-    setLista((cur) => cur.filter((x) => x.id !== id));
+  function toggleEsp(e: string) {
+    setForm((f) => ({
+      ...f,
+      especialidades: f.especialidades.includes(e)
+        ? f.especialidades.filter((x) => x !== e)
+        : [...f.especialidades, e],
+    }));
   }
 
-  async function guardar(form: FormData) {
-    if (!user) return;
-    const nome = (form.get('nome') as string)?.trim();
-    const distrito = form.get('distrito') as string;
-    const cidade = form.get('cidade') as string;
-    const telemovel = (form.get('telemovel') as string)?.trim();
-    const email = (form.get('email') as string)?.trim();
-    const anos_experiencia = (form.get('anos') as string)?.trim() || null;
-    const bio = (form.get('bio') as string)?.trim();
-    let instagram = (form.get('instagram') as string)?.trim() || null;
-    if (instagram) {
-      instagram = instagram
-        .replace(/^https?:\/\/(www\.)?instagram\.com\//i, '')
-        .replace(/^@/, '')
-        .replace(/\/$/, '');
-    }
+  async function guardar(ev: React.FormEvent) {
+    ev.preventDefault();
+    if (!user || aGuardar) return;
+    setErroForm('');
 
-    if (!nome || !distrito || !cidade || !telemovel || !email || !bio) {
-      setMsg({ text: 'Preenche nome, distrito, concelho, telemóvel, email e uma breve descrição.', ok: false });
-      return;
-    }
+    const nome = form.nome.trim();
+    if (nome.length < 2) return setErroForm('Indica o teu nome.');
+    if (!form.distrito || !form.cidade) return setErroForm('Escolhe o distrito e o concelho.');
+    if (!telemovelValido(form.telemovel)) return setErroForm('Indica um telemóvel português com 9 dígitos.');
+    if (!emailValido(form.email)) return setErroForm('Indica um email válido.');
+    if (form.bio.trim().length < 10) return setErroForm('Escreve uma apresentação com pelo menos 10 caracteres.');
 
+    setAGuardar(true);
     const payload = {
-      nome, cidade, distrito, telemovel, email, anos_experiencia, bio, instagram,
-      especialidades: selecionadas,
-      fotos, foto_url: fotos[0] ?? null,
+      nome,
+      distrito: form.distrito,
+      cidade: form.cidade,
+      telemovel: form.telemovel.trim(),
+      email: form.email.trim(),
+      anos_experiencia: form.anos_experiencia || null,
+      bio: form.bio.trim(),
+      instagram: normalizarInstagram(form.instagram),
+      especialidades: form.especialidades,
+      fotos: form.fotos,
+      foto_url: form.fotos[0] ?? null,
     };
 
-    if (meuPerfil) {
-      const { data, error } = await supabase.from('barbeiros').update(payload).eq('id', meuPerfil.id).select().single();
-      if (error) { setMsg({ text: 'Algo correu mal: ' + error.message, ok: false }); return; }
-      setLista((cur) => cur.map((b) => (b.id === meuPerfil.id ? (data as Barbeiro) : b)));
-    } else {
-      const { data, error } = await supabase.from('barbeiros').insert({ ...payload, user_id: user.id }).select().single();
-      if (error) { setMsg({ text: 'Algo correu mal: ' + error.message, ok: false }); return; }
-      setLista((cur) => [data as Barbeiro, ...cur]);
-    }
-    setModalOpen(false); setMsg(null);
+    const { error } = editId
+      ? await supabase.from('barbeiros').update(payload).eq('id', editId).eq('user_id', user.id)
+      : await supabase.from('barbeiros').insert({ ...payload, user_id: user.id });
+
+    setAGuardar(false);
+    if (error) { setErroForm('Não foi possível guardar: ' + error.message); return; }
+    setFormAberto(false);
+    carregar();
   }
 
-  const listaFiltrada = lista.filter(
-    (b) => (filtroDistrito === 'Todos' || b.distrito === filtroDistrito) &&
-           (filtroConcelho === 'Todos' || b.cidade === filtroConcelho) &&
-           (filtroEsp === 'Todas' || b.especialidades?.includes(filtroEsp))
-  );
+  async function remover(b: Barbeiro) {
+    if (!user || b.user_id !== user.id) return;
+    if (!window.confirm('Remover o teu portefólio? Esta ação não pode ser desfeita.')) return;
+    const { error } = await supabase.from('barbeiros').delete().eq('id', b.id).eq('user_id', user.id);
+    if (error) { window.alert('Não foi possível remover: ' + error.message); return; }
+    setDetalhe(null);
+    carregar();
+  }
+
+  const filtrada = useMemo(() => {
+    const q = pesquisa.trim().toLowerCase();
+    return lista.filter((b) => {
+      if (distrito !== 'Todos' && b.distrito !== distrito) return false;
+      if (concelho !== 'Todos' && b.cidade !== concelho) return false;
+      if (especialidade !== 'Todas' && !(b.especialidades ?? []).includes(especialidade)) return false;
+      if (q && !`${b.nome} ${b.cidade} ${b.bio}`.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [lista, pesquisa, distrito, concelho, especialidade]);
+
+  const filtrado = pesquisa !== '' || distrito !== 'Todos' || concelho !== 'Todos' || especialidade !== 'Todas';
+  function limpar() {
+    setPesquisa(''); setDistrito('Todos'); setConcelho('Todos'); setEspecialidade('Todas');
+  }
 
   return (
     <div className="max-w-[1100px] mx-auto px-6 py-10">
-      <div className="flex justify-between items-end flex-wrap gap-4 mb-6">
+      <div className="flex flex-wrap items-end justify-between gap-4 mb-8">
         <div>
-          <span className="font-mono text-[11px] tracking-wide text-red font-semibold block mb-1">Talento</span>
-          <h2 className="text-3xl">Portefólios de barbeiros</h2>
+          <span className="eyebrow">Portefólios</span>
+          <h1 className="text-3xl sm:text-4xl">Barbeiros</h1>
+          <p className="text-muted mt-2 max-w-xl">
+            Vê o trabalho de barbeiros de todo o país e contacta diretamente quem procuras.
+          </p>
         </div>
-        <button className="btn btn-red" onClick={abrirModal}>
+        <button type="button" onClick={aoClicarCriar} className="btn btn-primary">
           {meuPerfil ? 'Editar o meu portefólio' : 'Criar o meu portefólio'}
         </button>
       </div>
 
-      <div className="flex gap-2.5 flex-wrap mb-6">
-        <DistritoConcelhoPicker
-          distrito={filtroDistrito}
-          concelho={filtroConcelho}
-          onDistritoChange={setFiltroDistrito}
-          onConcelhoChange={setFiltroConcelho}
-          allowTodos
+      <div className="flex flex-wrap gap-2 mb-5">
+        <input
+          type="search"
+          aria-label="Pesquisar barbeiros"
+          placeholder="Pesquisar por nome ou cidade"
+          className="field-input w-full sm:w-64"
+          value={pesquisa}
+          onChange={(e) => setPesquisa(e.target.value)}
         />
-        <select className="field-input w-auto font-mono text-xs uppercase" value={filtroEsp} onChange={(e) => setFiltroEsp(e.target.value)}>
+        <DistritoConcelhoPicker
+          allowTodos
+          distrito={distrito}
+          concelho={concelho}
+          onDistritoChange={setDistrito}
+          onConcelhoChange={setConcelho}
+        />
+        <select
+          aria-label="Especialidade"
+          className="field-input w-auto"
+          value={especialidade}
+          onChange={(e) => setEspecialidade(e.target.value)}
+        >
           <option value="Todas">Todas as especialidades</option>
           {ESPECIALIDADES.map((e) => <option key={e} value={e}>{e}</option>)}
         </select>
       </div>
 
       {loading ? (
-        <p className="font-mono text-sm text-muted text-center py-16">A carregar barbeiros…</p>
-      ) : listaFiltrada.length === 0 ? (
-        <div className="text-center py-16 border-[1.5px] border-dashed border-line rounded-xl">
-          <h3 className="text-2xl mb-2">Ainda não há barbeiros aqui</h3>
-          <p className="text-sm text-muted mb-4">Cria o primeiro portefólio e aparece para as barbearias desta zona.</p>
-          <button className="btn btn-primary" onClick={abrirModal}>Criar portefólio</button>
-        </div>
+        <SkeletonGrid />
+      ) : erroLista ? (
+        <ErrorState onRetry={carregar} />
       ) : (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {listaFiltrada.map((b) => {
-            const isMine = user && b.user_id === user.id;
-            const foto = capa(b);
-            return (
-              <div key={b.id} className="card">
-                <div className="flex gap-3 items-center">
-                  <div
-                    className="w-[54px] h-[54px] rounded-full shrink-0 flex items-center justify-center font-display text-xl text-white border-2 border-ink bg-cover bg-center"
-                    style={foto ? { backgroundImage: `url('${foto}')`, color: 'transparent' } : { background: colorFor(b.nome) }}
-                  >
-                    {!foto && initials(b.nome)}
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-base">{b.nome} {isMine && <span className="tag ml-1">Tu</span>}</h4>
-                    <div className="font-mono text-[11px] text-muted">{b.cidade}{b.distrito ? `, ${b.distrito}` : ''}{b.anos_experiencia ? ` · ${b.anos_experiencia} anos exp.` : ''}</div>
-                  </div>
-                </div>
-                <p className="text-sm text-[#4a4536] line-clamp-3">{b.bio}</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {(b.especialidades ?? []).slice(0, 3).map((e) => <span key={e} className="tag">{e}</span>)}
-                </div>
-                <div className="flex gap-2 mt-1">
-                  <button className="btn btn-primary btn-sm" onClick={() => setVerPerfil(b)}>Ver perfil</button>
-                  {isMine && <button className="btn btn-sm" onClick={abrirModal}>Editar</button>}
-                  {isMine && <button className="btn btn-danger btn-sm" onClick={() => remover(b.id)}>Remover</button>}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {modalOpen && (
-        <Modal onClose={() => { setModalOpen(false); setMsg(null); }}>
-          <form onSubmit={(e) => { e.preventDefault(); guardar(new FormData(e.currentTarget)); }}>
-            <h2 className="text-3xl mb-1">{meuPerfil ? 'Editar portefólio' : 'Criar portefólio'}</h2>
-            <p className="text-sm text-muted mb-5">Os teus dados ficam visíveis para todas as barbearias no BarberPlaza.</p>
-            {msg && <div className="text-sm font-mono px-3 py-2.5 rounded-md mb-3 bg-[#f3d9d4] text-redDark">{msg.text}</div>}
-            <label className="block mb-3.5">
-              <span className="field-label">Nome completo</span>
-              <input name="nome" defaultValue={meuPerfil?.nome} className="field-input" placeholder="Ex: Rui Almeida" />
-            </label>
-            <div className="grid grid-cols-2 gap-3">
-              <label className="block mb-3.5">
-                <span className="field-label">Distrito</span>
-                <DistritoConcelhoPicker
-                  distrito={formDistrito} concelho={formConcelho}
-                  onDistritoChange={setFormDistrito} onConcelhoChange={setFormConcelho}
-                  distritoName="distrito" concelhoName="cidade"
-                  className="field-input"
-                />
-              </label>
-              <label className="block mb-3.5">
-                <span className="field-label">Anos de experiência</span>
-                <input name="anos" defaultValue={meuPerfil?.anos_experiencia ?? ''} className="field-input" placeholder="Ex: 5" />
-              </label>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <label className="block mb-3.5">
-                <span className="field-label">Telemóvel</span>
-                <input name="telemovel" defaultValue={meuPerfil?.telemovel} className="field-input" placeholder="9xx xxx xxx" />
-              </label>
-              <label className="block mb-3.5">
-                <span className="field-label">Email</span>
-                <input name="email" type="email" defaultValue={meuPerfil?.email ?? user?.email ?? ''} className="field-input" placeholder="tu@email.com" />
-              </label>
-            </div>
-            <label className="block mb-3.5">
-              <span className="field-label">Especialidades</span>
-              <div className="flex flex-wrap gap-2">
-                {ESPECIALIDADES.map((e) => (
-                  <span
-                    key={e}
-                    className={`chip ${selecionadas.includes(e) ? 'on' : ''}`}
-                    onClick={() => setSelecionadas((cur) => cur.includes(e) ? cur.filter((x) => x !== e) : [...cur, e])}
-                  >
-                    {e}
-                  </span>
-                ))}
-              </div>
-            </label>
-            <label className="block mb-3.5">
-              <span className="field-label">Sobre ti</span>
-              <textarea name="bio" defaultValue={meuPerfil?.bio} className="field-input min-h-[80px]" placeholder="Fala do teu percurso, estilo e o que procuras numa barbearia." />
-            </label>
-            <label className="block mb-3.5">
-              <span className="field-label">Instagram (opcional)</span>
-              <input name="instagram" defaultValue={meuPerfil?.instagram ?? ''} className="field-input" placeholder="@teuhandle" />
-            </label>
-            <label className="block mb-3.5">
-              <span className="field-label">Fotos do portefólio</span>
-              <PhotoUploader fotos={fotos} onChange={setFotos} />
-            </label>
-            <button type="submit" className="btn btn-red w-full justify-center">
-              {meuPerfil ? 'Guardar alterações' : 'Publicar portefólio'}
-            </button>
-          </form>
-        </Modal>
-      )}
-
-      {verPerfil && (
-        <Modal onClose={() => setVerPerfil(null)}>
-          {verPerfil.fotos && verPerfil.fotos.length > 0 ? (
-            <div className="grid grid-cols-3 gap-2 mb-3.5">
-              {verPerfil.fotos.map((url) => (
+        <>
+          <ResultsBar count={filtrada.length} singular="barbeiro" plural="barbeiros" filtrado={filtrado} onClear={limpar} />
+          {filtrada.length === 0 ? (
+            filtrado ? (
+              <EmptyState
+                title="Nenhum barbeiro com estes filtros."
+                text="Experimenta alargar a zona ou limpar os filtros."
+                action={<button type="button" onClick={limpar} className="btn btn-sm mt-1">Limpar filtros</button>}
+              />
+            ) : (
+              <EmptyState
+                title="Ainda não há portefólios."
+                text="Sê o primeiro a criar o teu. É gratuito e demora poucos minutos."
+                action={<button type="button" onClick={aoClicarCriar} className="btn btn-primary btn-sm mt-1">Criar o meu portefólio</button>}
+              />
+            )
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {filtrada.map((b) => (
                 <button
-                  key={url}
+                  key={b.id}
                   type="button"
-                  onClick={() => setFotoAmpliada(url)}
-                  className="relative aspect-square rounded-lg overflow-hidden bg-navy cursor-zoom-in"
+                  onClick={() => setDetalhe(b)}
+                  className="card text-left cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy"
                 >
-                  <Image src={url} alt="" fill sizes="200px" className="object-cover" />
+                  <div className="flex items-center gap-3">
+                    <Avatar nome={b.nome} url={b.fotos?.[0] ?? b.foto_url} size={56} />
+                    <div className="min-w-0">
+                      <p className="font-display font-semibold text-lg leading-tight truncate">{b.nome}</p>
+                      <p className="meta truncate">{b.cidade}{b.distrito ? `, ${b.distrito}` : ''}</p>
+                    </div>
+                  </div>
+                  {b.anos_experiencia && <p className="meta">Experiência: {b.anos_experiencia}</p>}
+                  {b.especialidades?.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {b.especialidades.slice(0, 3).map((e) => <span key={e} className="tag">{e}</span>)}
+                      {b.especialidades.length > 3 && <span className="tag">+{b.especialidades.length - 3}</span>}
+                    </div>
+                  )}
                 </button>
               ))}
             </div>
-          ) : (
-            <div className="w-[74px] h-[74px] rounded-full flex items-center justify-center font-display text-2xl text-white mb-3.5" style={{ background: colorFor(verPerfil.nome) }}>
-              {initials(verPerfil.nome)}
+          )}
+        </>
+      )}
+
+      {/* Detalhe */}
+      {detalhe && (
+        <Modal onClose={() => setDetalhe(null)}>
+          <div className="flex items-center gap-4 mb-5 pr-8">
+            <Avatar nome={detalhe.nome} url={detalhe.fotos?.[0] ?? detalhe.foto_url} size={72} />
+            <div className="min-w-0">
+              <h2 className="text-2xl leading-tight">{detalhe.nome}</h2>
+              <p className="meta">{detalhe.cidade}{detalhe.distrito ? `, ${detalhe.distrito}` : ''}</p>
+              {detalhe.anos_experiencia && <p className="meta">Experiência: {detalhe.anos_experiencia}</p>}
+            </div>
+          </div>
+
+          {detalhe.especialidades?.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mb-4">
+              {detalhe.especialidades.map((e) => <span key={e} className="tag">{e}</span>)}
             </div>
           )}
-          <h2 className="text-3xl">{verPerfil.nome}</h2>
-          <p className="text-sm text-muted mb-3">{verPerfil.cidade}{verPerfil.distrito ? `, ${verPerfil.distrito}` : ''}{verPerfil.anos_experiencia ? ` · ${verPerfil.anos_experiencia} anos de experiência` : ''}</p>
-          <div className="flex flex-wrap gap-1.5 mb-4">
-            {(verPerfil.especialidades ?? []).map((e) => <span key={e} className="tag">{e}</span>)}
-          </div>
-          <p className="text-sm text-[#3a372f]">{verPerfil.bio}</p>
-          <div className="mt-4 pt-4 border-t border-line font-mono text-sm space-y-1">
-            <div>📞 {verPerfil.telemovel}</div>
-            {verPerfil.email && <div>✉️ {verPerfil.email}</div>}
-            {verPerfil.instagram && (
-              <div>
-                📷 <a href={`https://instagram.com/${verPerfil.instagram}`} target="_blank" rel="noopener" className="text-red font-semibold">@{verPerfil.instagram}</a>
-              </div>
+
+          <p className="text-sm whitespace-pre-line mb-5">{detalhe.bio}</p>
+
+          {(detalhe.fotos?.length ?? 0) > 0 && (
+            <div className="mb-5">
+              <PhotoGrid
+                fotos={detalhe.fotos ?? []}
+                nome={detalhe.nome}
+                onOpen={(i) => setLightbox({ fotos: detalhe.fotos ?? [], i, nome: detalhe.nome })}
+              />
+            </div>
+          )}
+
+          <div className="flex flex-wrap gap-2">
+            <a className="btn btn-primary btn-sm" href={`tel:${detalhe.telemovel.replace(/\s/g, '')}`}>Ligar</a>
+            {detalhe.email && <a className="btn btn-sm" href={`mailto:${detalhe.email}`}>Enviar email</a>}
+            {detalhe.instagram && (
+              <a className="btn btn-sm" href={`https://instagram.com/${detalhe.instagram}`} target="_blank" rel="noopener noreferrer">
+                Instagram @{detalhe.instagram}
+              </a>
             )}
           </div>
+          <p className="meta mt-3">{detalhe.telemovel}{detalhe.email ? ` · ${detalhe.email}` : ''}</p>
+
+          {user && detalhe.user_id === user.id && (
+            <div className="flex gap-2 mt-5 pt-4 border-t border-line">
+              <button type="button" className="btn btn-sm" onClick={() => abrirEdicao(detalhe)}>Editar</button>
+              <button type="button" className="btn btn-danger btn-sm" onClick={() => remover(detalhe)}>Remover</button>
+            </div>
+          )}
         </Modal>
       )}
 
-      {fotoAmpliada && (
-        <div
-          className="fixed inset-0 bg-black/90 z-[200] flex items-center justify-center p-4"
-          onClick={() => setFotoAmpliada(null)}
-        >
-          <div className="relative w-full h-full max-w-3xl max-h-[85vh]">
-            <Image src={fotoAmpliada} alt="" fill sizes="100vw" className="object-contain rounded-lg" />
-          </div>
-          <button
-            onClick={() => setFotoAmpliada(null)}
-            aria-label="Fechar"
-            className="absolute top-4 right-4 text-white text-3xl leading-none"
-          >
-            ×
-          </button>
-        </div>
+      {lightbox && (
+        <Lightbox
+          fotos={lightbox.fotos}
+          index={lightbox.i}
+          alt={`Trabalho de ${lightbox.nome}`}
+          onClose={() => setLightbox(null)}
+          onIndex={(i) => setLightbox((l) => (l ? { ...l, i } : l))}
+        />
+      )}
+
+      {/* Formulário */}
+      {formAberto && (
+        <Modal onClose={() => setFormAberto(false)}>
+          <form onSubmit={guardar} className="space-y-4">
+            <h2 className="text-2xl pr-8">{editId ? 'Editar portefólio' : 'Criar portefólio'}</h2>
+
+            <div>
+              <label htmlFor="b-nome" className="field-label">Nome</label>
+              <input id="b-nome" className="field-input" value={form.nome} maxLength={100}
+                onChange={(e) => setForm({ ...form, nome: e.target.value })} required />
+            </div>
+
+            <div>
+              <span className="field-label">Localização</span>
+              <DistritoConcelhoPicker
+                distrito={form.distrito}
+                concelho={form.cidade}
+                onDistritoChange={(v) => setForm((f) => ({ ...f, distrito: v }))}
+                onConcelhoChange={(v) => setForm((f) => ({ ...f, cidade: v }))}
+                className="field-input"
+              />
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label htmlFor="b-tel" className="field-label">Telemóvel</label>
+                <input id="b-tel" type="tel" className="field-input" value={form.telemovel} maxLength={20}
+                  onChange={(e) => setForm({ ...form, telemovel: e.target.value })} required />
+              </div>
+              <div>
+                <label htmlFor="b-email" className="field-label">Email</label>
+                <input id="b-email" type="email" className="field-input" value={form.email} maxLength={120}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })} required />
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label htmlFor="b-anos" className="field-label">Experiência</label>
+                <select id="b-anos" className="field-input" value={form.anos_experiencia}
+                  onChange={(e) => setForm({ ...form, anos_experiencia: e.target.value })}>
+                  <option value="">Não indicar</option>
+                  {ANOS.map((a) => <option key={a} value={a}>{a}</option>)}
+                </select>
+              </div>
+              <div>
+                <label htmlFor="b-ig" className="field-label">Instagram (opcional)</label>
+                <input id="b-ig" className="field-input" placeholder="@utilizador" value={form.instagram} maxLength={80}
+                  onChange={(e) => setForm({ ...form, instagram: e.target.value })} />
+              </div>
+            </div>
+
+            <div>
+              <span className="field-label">Especialidades</span>
+              <div className="flex flex-wrap gap-2">
+                {ESPECIALIDADES.map((e) => (
+                  <button
+                    key={e}
+                    type="button"
+                    aria-pressed={form.especialidades.includes(e)}
+                    onClick={() => toggleEsp(e)}
+                    className={`chip ${form.especialidades.includes(e) ? 'on' : ''}`}
+                  >
+                    {e}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="b-bio" className="field-label">Apresentação</label>
+              <textarea id="b-bio" className="field-input min-h-[110px]" value={form.bio} maxLength={1200}
+                onChange={(e) => setForm({ ...form, bio: e.target.value })} required
+                placeholder="Fala do teu percurso, do estilo de trabalho e do que procuras." />
+            </div>
+
+            <div>
+              <span className="field-label">Fotografias do teu trabalho</span>
+              <PhotoUploader fotos={form.fotos} onChange={(fotos) => setForm((f) => ({ ...f, fotos }))} />
+            </div>
+
+            {erroForm && <p role="alert" className="text-sm text-red">{erroForm}</p>}
+
+            <button type="submit" disabled={aGuardar} className="btn btn-primary w-full">
+              {aGuardar ? 'A guardar...' : editId ? 'Guardar alterações' : 'Publicar portefólio'}
+            </button>
+          </form>
+        </Modal>
       )}
     </div>
   );
