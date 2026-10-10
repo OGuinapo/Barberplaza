@@ -30,7 +30,16 @@ const FORM_VAZIO: Form = {
   anos_experiencia: '', bio: '', instagram: '', especialidades: [], fotos: [],
 };
 
-const ANOS = ['Menos de 1 ano', '1 a 3 anos', '3 a 5 anos', '5 a 10 anos', 'Mais de 10 anos'];
+// De 1 a 40 anos, guardados como texto ("1", "2", ...).
+const ANOS = Array.from({ length: 40 }, (_, i) => String(i + 1));
+
+// "1" -> "1 ano", "5" -> "5 anos". Valores antigos (ex.: "3 a 5 anos") ficam como estao.
+function formatarAnos(v: string | null | undefined): string | null {
+  if (!v) return null;
+  const t = v.trim();
+  if (/^\d+$/.test(t)) return t === '1' ? '1 ano' : `${t} anos`;
+  return t;
+}
 
 export default function BarbeirosPage() {
   const router = useRouter();
@@ -89,7 +98,7 @@ export default function BarbeirosPage() {
       cidade: b.cidade,
       telemovel: b.telemovel,
       email: b.email ?? '',
-      anos_experiencia: b.anos_experiencia ?? '',
+      anos_experiencia: /^\d+$/.test(b.anos_experiencia ?? '') ? (b.anos_experiencia as string) : '',
       bio: b.bio,
       instagram: b.instagram ?? '',
       especialidades: b.especialidades ?? [],
@@ -264,7 +273,7 @@ export default function BarbeirosPage() {
                       <p className="meta truncate">{b.cidade}{b.distrito ? `, ${b.distrito}` : ''}</p>
                     </div>
                   </div>
-                  {b.anos_experiencia && <p className="meta">Experiência: {b.anos_experiencia}</p>}
+                  {formatarAnos(b.anos_experiencia) && <p className="meta">Experiência: {formatarAnos(b.anos_experiencia)}</p>}
                   {b.especialidades?.length > 0 && (
                     <div className="flex flex-wrap gap-1.5">
                       {b.especialidades.slice(0, 3).map((e) => <span key={e} className="tag">{e}</span>)}
@@ -286,7 +295,7 @@ export default function BarbeirosPage() {
             <div className="min-w-0">
               <h2 className="text-2xl leading-tight">{detalhe.nome}</h2>
               <p className="meta">{detalhe.cidade}{detalhe.distrito ? `, ${detalhe.distrito}` : ''}</p>
-              {detalhe.anos_experiencia && <p className="meta">Experiência: {detalhe.anos_experiencia}</p>}
+              {formatarAnos(detalhe.anos_experiencia) && <p className="meta">Experiência: {formatarAnos(detalhe.anos_experiencia)}</p>}
             </div>
           </div>
 
@@ -380,7 +389,7 @@ export default function BarbeirosPage() {
                 <select id="b-anos" className="field-input" value={form.anos_experiencia}
                   onChange={(e) => setForm({ ...form, anos_experiencia: e.target.value })}>
                   <option value="">Não indicar</option>
-                  {ANOS.map((a) => <option key={a} value={a}>{a}</option>)}
+                  {ANOS.map((a) => <option key={a} value={a}>{a === '1' ? '1 ano' : `${a} anos`}</option>)}
                 </select>
               </div>
               <div>
