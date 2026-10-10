@@ -39,7 +39,6 @@ export default function CandidaturasPage() {
     <div className="max-w-[900px] mx-auto px-6 py-10">
       <Link href="/emprego" className="text-sm text-muted hover:text-ink">← Vagas</Link>
       <div className="mt-4 mb-8">
-        <span className="eyebrow">Barbearias</span>
         <h1 className="text-3xl sm:text-4xl">Candidaturas recebidas</h1>
         <p className="text-muted mt-2">Respondes diretamente ao candidato, pelo contacto que ele deixou.</p>
       </div>
