@@ -1,75 +1,133 @@
 'use client';
 
 import { useState } from 'react';
-import { supabase } from '@/lib/supabaseClient';
 
 export default function CandidatarForm({
   vagaId,
   vagaTitulo,
-  barbeariaEmail,
+  onSuccess,
 }: {
   vagaId: string;
-  vagaTitulo: string;
-  barbeariaEmail: string | null;
+  vagaTitulo?: string;
+  onSuccess?: () => void;
 }) {
-  const [enviado, setEnviado] = useState(false);
-  const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [nome, setNome] = useState('');
+  const [contacto, setContacto] = useState('');
+  const [mensagem, setMensagem] = useState('');
+  const [website, setWebsite] = useState(''); // honeypot
+  const [aEnviar, setAEnviar] = useState(false);
+  const [erro, setErro] = useState('');
+  const [ok, setOk] = useState(false);
 
-  async function enviar(form: FormData) {
-    const nome = (form.get('nome') as string)?.trim();
-    const contacto = (form.get('contacto') as string)?.trim();
-    const mensagem = (form.get('mensagem') as string)?.trim();
-    if (!nome || !contacto) {
-      setMsg({ text: 'Indica o teu nome e um contacto (telemóvel ou email).', ok: false });
-      return;
-    }
-    setLoading(true);
-    const { error } = await supabase.from('candidaturas').insert({ vaga_id: vagaId, nome, contacto, mensagem });
-    setLoading(false);
-    if (error) { setMsg({ text: 'Algo correu mal: ' + error.message, ok: false }); return; }
-
-    if (barbeariaEmail) {
-      try {
-        await fetch('/api/notificar-candidatura', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ to: barbeariaEmail, vagaTitulo, nome, contacto, mensagem }),
-        });
-      } catch {
-        // notificação é best-effort — não bloqueia a candidatura
+  async function enviar(e: React.FormEvent) {
+    e.preventDefault();
+    if (aEnviar) return;
+    setErro('');
+    setAEnviar(true);
+    try {
+      const res = await fetch('/api/candidatar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ vagaId, nome, contacto, mensagem, website }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setErro(data?.erro ?? 'Não foi possível enviar a candidatura. Tenta novamente.');
+        return;
       }
+      setOk(true);
+      onSuccess?.();
+    } catch {
+      setErro('Sem ligação. Verifica a internet e tenta novamente.');
+    } finally {
+      setAEnviar(false);
     }
-    setEnviado(true);
   }
 
-  if (enviado) {
+  if (ok) {
     return (
-      <div className="bg-[#dfe9df] text-[#2e5a2e] text-sm font-mono px-4 py-3 rounded-md">
-        Candidatura enviada! A barbearia vai poder ver os teus dados.
+      <div className="py-4">
+        <h3 className="text-xl mb-2">Candidatura enviada</h3>
+        <p className="text-sm text-muted">
+          A barbearia vai receber os teus dados e responde-te pelo contacto que indicaste.
+        </p>
       </div>
     );
   }
 
   return (
-    <form onSubmit={(e) => { e.preventDefault(); enviar(new FormData(e.currentTarget)); }} className="border-t border-line pt-6">
-      <h2 className="text-xl font-body normal-case tracking-normal font-bold mb-3">Candidatar-me a esta vaga</h2>
-      {msg && <div className="text-sm font-mono px-3 py-2.5 rounded-md mb-3 bg-[#f3d9d4] text-redDark">{msg.text}</div>}
-      <label className="block mb-3.5">
-        <span className="field-label">O teu nome</span>
-        <input name="nome" className="field-input" placeholder="Nome completo" />
-      </label>
-      <label className="block mb-3.5">
-        <span className="field-label">Contacto (telemóvel ou email)</span>
-        <input name="contacto" className="field-input" placeholder="9xx xxx xxx ou email" />
-      </label>
-      <label className="block mb-3.5">
-        <span className="field-label">Mensagem (opcional)</span>
-        <textarea name="mensagem" className="field-input min-h-[80px]" placeholder="Uma breve apresentação para a barbearia." />
-      </label>
-      <button type="submit" disabled={loading} className="btn btn-red w-full justify-center">
-        {loading ? 'A enviar…' : 'Enviar candidatura'}
+    <form onSubmit={enviar} className="space-y-4">
+      <div>
+        <h3 className="text-xl">Candidatar</h3>
+        {vagaTitulo && <p className="meta mt-1">{vagaTitulo}</p>}
+      </div>
+
+      <div>
+        <label htmlFor="cand-nome" className="field-label">Nome</label>
+        <input
+          id="cand-nome"
+          className="field-input"
+          value={nome}
+          onChange={(e) => setNome(e.target.value)}
+          required
+          minLength={2}
+          maxLength={100}
+          autoComplete="name"
+        />
+      </div>
+
+      <div>
+        <label htmlFor="cand-contacto" className="field-label">Telemóvel ou email</label>
+        <input
+          id="cand-contacto"
+          className="field-input"
+          value={contacto}
+          onChange={(e) => setContacto(e.target.value)}
+          required
+          minLength={5}
+          maxLength={120}
+          autoComplete="email"
+        />
+      </div>
+
+      <div>
+        <label htmlFor="cand-msg" className="field-label">Mensagem (opcional)</label>
+        <textarea
+          id="cand-msg"
+          className="field-input min-h-[110px]"
+          value={mensagem}
+          onChange={(e) => setMensagem(e.target.value)}
+          maxLength={1000}
+          placeholder="Apresenta-te em poucas linhas: experiência, disponibilidade, link do portefólio."
+        />
+        <p className="meta mt-1 text-right">{mensagem.length}/1000</p>
+      </div>
+
+      {/* Campo isco para bots: escondido de pessoas */}
+      <div aria-hidden="true" className="absolute -left-[9999px] h-0 w-0 overflow-hidden">
+        <label>
+          Website
+          <input
+            tabIndex={-1}
+            autoComplete="off"
+            value={website}
+            onChange={(e) => setWebsite(e.target.value)}
+          />
+        </label>
+      </div>
+
+      {erro && (
+        <p role="alert" className="text-sm text-red">
+          {erro}
+        </p>
+      )}
+
+      <button type="submit" disabled={aEnviar} className="btn btn-primary w-full">
+        {aEnviar ? 'A enviar...' : 'Enviar candidatura'}
       </button>
+      <p className="meta">
+        Os teus dados são partilhados apenas com a barbearia desta vaga.
+      </p>
     </form>
   );
 }
