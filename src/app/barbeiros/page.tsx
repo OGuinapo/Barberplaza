@@ -190,7 +190,6 @@ export default function BarbeirosPage() {
     <div className="max-w-[1100px] mx-auto px-6 py-10">
       <div className="flex flex-wrap items-end justify-between gap-4 mb-8">
         <div>
-          <span className="eyebrow">Portefólios</span>
           <h1 className="text-3xl sm:text-4xl">Barbeiros</h1>
           <p className="text-muted mt-2 max-w-xl">
             Vê o trabalho de barbeiros de todo o país e contacta diretamente quem procuras.
@@ -261,7 +260,7 @@ export default function BarbeirosPage() {
                   <div className="flex items-center gap-3">
                     <Avatar nome={b.nome} url={b.fotos?.[0] ?? b.foto_url} size={56} />
                     <div className="min-w-0">
-                      <p className="font-display font-semibold text-lg leading-tight truncate">{b.nome}</p>
+                      <p className="font-display font-bold text-lg leading-tight truncate">{b.nome}</p>
                       <p className="meta truncate">{b.cidade}{b.distrito ? `, ${b.distrito}` : ''}</p>
                     </div>
                   </div>
