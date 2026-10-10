@@ -5,23 +5,34 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        ink: '#1b1a17',
-        paper: '#fefefc',
-        paper2: '#f3f1ea',
+        ink: '#1e1c18',
+        paper: '#fdfcf9',
+        paper2: '#f4f1e8',
         card: '#ffffff',
         red: '#a3392b',
         redDark: '#7e2a20',
         navy: '#2b3a4a',
         brass: '#8a6a28',
-        muted: '#5b5648',
-        line: 'rgba(27,26,23,0.12)',
+        muted: '#5e594c',
+        line: 'rgba(30,28,24,0.13)',
       },
       fontFamily: {
-        display: ['var(--font-display)', 'sans-serif'],
+        // Bebas Neue: só o letreiro (logótipo e página inicial)
+        brand: ['var(--font-brand)', 'sans-serif'],
+        // Bricolage Grotesque: títulos e interface
+        display: ['var(--font-heading)', 'sans-serif'],
+        // Inter: texto corrido
         body: ['var(--font-inter)', 'sans-serif'],
-        // "mono" passa a usar a mesma fonte do corpo, para que ficheiros antigos
-        // que ainda usem font-mono (entrar, registar) fiquem coerentes.
+        // Páginas antigas (entrar, registar) que ainda usam font-mono ficam coerentes
         mono: ['var(--font-inter)', 'sans-serif'],
+      },
+      // Pesos mais leves: "semibold" fica a 500 e "bold" a 600.
+      fontWeight: {
+        semibold: '500',
+        bold: '600',
+      },
+      borderRadius: {
+        '4xl': '1.25rem',
       },
     },
   },
