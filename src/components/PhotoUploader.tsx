@@ -146,12 +146,20 @@ export default function PhotoUploader({
               dragIndex === i ? 'opacity-60 scale-95 border-red' : overIndex === i && dragIndex !== null ? 'border-red' : 'border-line'
             }`}
           >
-            <NextImage src={url} alt="" fill sizes="80px" className="object-cover pointer-events-none" draggable={false} />
+            <NextImage
+              src={url}
+              alt={`Foto ${i + 1}`}
+              fill
+              sizes="80px"
+              className="object-cover pointer-events-none"
+              draggable={false}
+            />
             {i === 0 && (
-              <span className="absolute bottom-0.5 left-0.5 bg-ink/80 text-white text-[9px] font-mono px-1.5 py-0.5 rounded">CAPA</span>
+              <span className="absolute bottom-0.5 left-0.5 bg-ink/80 text-white text-[9px] font-semibold px-1.5 py-0.5 rounded">CAPA</span>
             )}
             <button
               type="button"
+              aria-label={`Remover foto ${i + 1}`}
               onPointerDown={(e) => e.stopPropagation()}
               onClick={() => remover(url)}
               className="absolute top-0.5 right-0.5 bg-ink/80 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs"
@@ -161,15 +169,15 @@ export default function PhotoUploader({
           </div>
         ))}
         {fotos.length < MAX_FOTOS && (
-          <label className="w-20 h-20 rounded-lg border-2 border-dashed border-line flex items-center justify-center cursor-pointer text-muted text-xs text-center px-1">
-            {uploading ? 'A enviar…' : '+ Foto'}
+          <label className="w-20 h-20 rounded-lg border-2 border-dashed border-[#c9c5b8] flex items-center justify-center cursor-pointer text-muted text-xs text-center px-1 hover:bg-paper2">
+            {uploading ? 'A enviar...' : '+ Foto'}
             <input type="file" accept="image/*" multiple hidden onChange={handleFiles} disabled={uploading} />
           </label>
         )}
       </div>
-      {erro && <p className="text-xs text-red font-mono">{erro}</p>}
-      <p className="text-xs text-muted font-mono">
-        Até {MAX_FOTOS} fotos. Mantém o dedo na foto e arrasta para reordenar — a primeira é a capa.
+      {erro && <p role="alert" className="text-xs text-red">{erro}</p>}
+      <p className="text-xs text-muted">
+        Até {MAX_FOTOS} fotos. Mantém o dedo na foto e arrasta para reordenar. A primeira é a capa.
       </p>
     </div>
   );
