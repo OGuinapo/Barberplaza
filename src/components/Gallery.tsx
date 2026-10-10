@@ -17,7 +17,7 @@ export function Avatar({
 }) {
   return (
     <div
-      className={`relative shrink-0 rounded-full overflow-hidden bg-navy text-white flex items-center justify-center font-display font-semibold ${className}`}
+      className={`relative shrink-0 rounded-full overflow-hidden bg-navy text-white flex items-center justify-center font-display font-bold ${className}`}
       style={{ width: size, height: size, fontSize: Math.round(size * 0.36) }}
     >
       {url ? (
