@@ -40,11 +40,12 @@ export type Vaga = {
   distrito: string | null;
   descricao: string;
   criado_em: string;
-  barbearias?: { nome: string; email?: string | null } | null; // via join
+  barbearias?: { nome: string; user_id?: string | null } | null; // via join
 };
 
 export type Formacao = {
   id: string;
+  user_id: string | null;
   titulo: string;
   tipo: string;
   organizador: string;
