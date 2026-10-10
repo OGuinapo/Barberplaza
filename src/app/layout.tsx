@@ -1,47 +1,60 @@
-import type { Metadata } from 'next';
-import { Bebas_Neue, Inter, IBM_Plex_Mono } from 'next/font/google';
+import type { Metadata, Viewport } from 'next';
+import { Poppins, Inter } from 'next/font/google';
 import './globals.css';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { AuthProvider } from '@/lib/AuthProvider';
 
-const bebas = Bebas_Neue({
-  weight: '400',
+const poppins = Poppins({
+  weight: ['500', '600', '700'],
   subsets: ['latin'],
-  variable: '--font-bebas',
+  variable: '--font-display',
+  display: 'swap',
 });
-const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
-const plexMono = IBM_Plex_Mono({
-  weight: ['500', '600'],
-  subsets: ['latin'],
-  variable: '--font-plex-mono',
-});
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' });
+
+const DESCRICAO =
+  'Plataforma de emprego e formação para barbeiros e barbearias em Portugal. Encontra vagas, cria o teu portefólio e descobre cursos e workshops. Gratuita.';
 
 export const metadata: Metadata = {
-  title: 'Empregos de Barbeiro em Portugal | Vagas em Barbearias — BarberPlaza',
-  description:
-    'Bolsa de emprego para barbeiros em Portugal. Encontra vagas em barbearias, publica o teu portefólio, candidata-te a emprego de barbeiro por cidade, e descobre cursos, workshops e eventos de barbearia. Grátis.',
-  keywords: [
-    'emprego barbeiro', 'vagas barbeiro', 'trabalho barbeiro Portugal',
-    'emprego barbearia', 'bolsa de emprego barbeiro', 'cadeira livre barbearia',
-    'cursos de barbearia', 'workshops barbearia',
-  ],
+  metadataBase: new URL('https://barberplaza.net'),
+  title: {
+    default: 'BarberPlaza | Emprego e formação para barbeiros em Portugal',
+    template: '%s | BarberPlaza',
+  },
+  description: DESCRICAO,
   openGraph: {
-    title: 'Empregos de Barbeiro em Portugal — BarberPlaza',
-    description: 'Vagas de emprego em barbearias portuguesas, portefólios de barbeiros e formação do setor.',
+    title: 'BarberPlaza | Emprego e formação para barbeiros em Portugal',
+    description: DESCRICAO,
     type: 'website',
     locale: 'pt_PT',
     siteName: 'BarberPlaza',
+    url: '/',
   },
+  twitter: {
+    card: 'summary',
+    title: 'BarberPlaza',
+    description: DESCRICAO,
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: '#fefefc',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-PT" className={`${bebas.variable} ${inter.variable} ${plexMono.variable}`}>
-      <body className="font-body">
+    <html lang="pt-PT" className={`${poppins.variable} ${inter.variable}`}>
+      <body className="font-body min-h-screen flex flex-col">
         <AuthProvider>
+          <a
+            href="#conteudo"
+            className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:bg-ink focus:text-white focus:px-4 focus:py-2 focus:rounded-lg"
+          >
+            Saltar para o conteúdo
+          </a>
           <Header />
-          <main>{children}</main>
+          <main id="conteudo" className="flex-1">{children}</main>
           <Footer />
         </AuthProvider>
       </body>
