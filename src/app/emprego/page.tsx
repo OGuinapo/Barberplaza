@@ -152,7 +152,6 @@ export default function EmpregoPage() {
     <div className="max-w-[1100px] mx-auto px-6 py-10">
       <div className="flex flex-wrap items-end justify-between gap-4 mb-8">
         <div>
-          <span className="eyebrow">Vagas</span>
           <h1 className="text-3xl sm:text-4xl">Emprego para barbeiros</h1>
           <p className="text-muted mt-2 max-w-xl">
             Vagas publicadas por barbearias de todo o país. Candidata-te sem criar conta.
@@ -215,32 +214,34 @@ export default function EmpregoPage() {
               />
             )
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2">
+            <ul className="space-y-3">
               {filtrada.map((v) => (
-                <article key={v.id} className="card">
-                  <div className="flex items-start justify-between gap-3">
-                    <h2 className="text-lg leading-snug">
-                      <Link href={`/emprego/${v.id}`} className="hover:text-red">{v.titulo}</Link>
-                    </h2>
-                    <span className="tag shrink-0">{v.tipo}</span>
-                  </div>
-                  <p className="meta">
-                    {v.barbearias?.nome ?? 'Barbearia'} · {v.cidade}{v.distrito ? `, ${v.distrito}` : ''}
-                  </p>
-                  <p className="text-sm text-muted line-clamp-3">{v.descricao}</p>
-                  <div className="flex items-center justify-between gap-2 mt-auto pt-2">
-                    <span className="meta">{tempoRelativo(v.criado_em)}</span>
-                    <div className="flex gap-2">
+                <li key={v.id}>
+                  <article className="job">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                        <span className="tag">{v.tipo}</span>
+                        <span className="meta">{tempoRelativo(v.criado_em)}</span>
+                      </div>
+                      <h2 className="text-xl leading-snug">
+                        <Link href={`/emprego/${v.id}`} className="hover:text-red transition-colors">{v.titulo}</Link>
+                      </h2>
+                      <p className="meta mt-0.5">
+                        {v.barbearias?.nome ?? 'Barbearia'} · {v.cidade}{v.distrito ? `, ${v.distrito}` : ''}
+                      </p>
+                      <p className="text-sm text-muted line-clamp-2 mt-2 max-w-2xl">{v.descricao}</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2 shrink-0">
                       {user && v.barbearias?.user_id === user.id && (
                         <button type="button" className="btn btn-danger btn-sm" onClick={() => remover(v)}>Remover</button>
                       )}
                       <Link href={`/emprego/${v.id}`} className="btn btn-sm">Ver vaga</Link>
                       <button type="button" className="btn btn-primary btn-sm" onClick={() => setACandidatar(v)}>Candidatar</button>
                     </div>
-                  </div>
-                </article>
+                  </article>
+                </li>
               ))}
-            </div>
+            </ul>
           )}
         </>
       )}
