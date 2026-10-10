@@ -27,7 +27,7 @@ export default function Header() {
   return (
     <header className="sticky top-0 z-40 bg-paper/90 backdrop-blur border-b border-line">
       <div className="max-w-[1100px] mx-auto px-6 h-16 flex items-center justify-between gap-4">
-        <Link href="/" className="flex items-center gap-2.5 font-display font-bold text-xl tracking-tight">
+        <Link href="/" className="flex items-center gap-2.5 font-brand text-2xl tracking-[0.06em]">
           <span className="w-2.5 h-7 rounded-[5px] overflow-hidden border border-ink pole-stripe pole-anim shrink-0" aria-hidden="true" />
           BARBERPLAZA
         </Link>
@@ -39,7 +39,7 @@ export default function Header() {
               key={t.href}
               href={t.href}
               aria-current={isActive(pathname, t.href) ? 'page' : undefined}
-              className={`text-sm font-semibold px-3 py-2 rounded-lg transition-colors ${
+              className={`font-display text-[15px] font-medium px-3.5 py-2 rounded-full transition-colors ${
                 isActive(pathname, t.href) ? 'text-ink bg-paper2' : 'text-muted hover:text-ink hover:bg-paper2'
               }`}
             >
@@ -48,16 +48,16 @@ export default function Header() {
           ))}
         </nav>
 
-        <div className="hidden md:flex gap-2 items-center min-w-[120px] justify-end">
+        <div className="hidden md:flex gap-2 items-center min-w-[150px] justify-end">
           {loading ? (
-            <span className="block h-9 w-[120px]" aria-hidden="true" />
+            <span className="block h-9 w-[150px]" aria-hidden="true" />
           ) : user ? (
             <>
               <span className="text-[13px] text-muted max-w-[170px] truncate" title={user.email ?? ''}>{user.email}</span>
               <button onClick={() => signOut()} className="btn btn-sm">Sair</button>
             </>
           ) : (
-            <Link href="/entrar" className="btn btn-primary btn-sm">Entrar</Link>
+            <Link href="/entrar" className="btn btn-primary btn-sm">Entrar / Registar</Link>
           )}
         </div>
 
@@ -83,7 +83,7 @@ export default function Header() {
                 key={t.href}
                 href={t.href}
                 aria-current={isActive(pathname, t.href) ? 'page' : undefined}
-                className={`text-[15px] font-semibold px-3 py-3 rounded-lg ${
+                className={`font-display text-base font-medium px-4 py-3 rounded-2xl ${
                   isActive(pathname, t.href) ? 'text-ink bg-paper2' : 'text-muted'
                 }`}
               >
@@ -98,7 +98,7 @@ export default function Header() {
                 <button onClick={() => signOut()} className="btn w-full">Sair</button>
               </>
             ) : (
-              <Link href="/entrar" className="btn btn-primary w-full">Entrar</Link>
+              <Link href="/entrar" className="btn btn-primary w-full">Entrar / Registar</Link>
             )}
           </div>
         </div>
