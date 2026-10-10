@@ -175,7 +175,6 @@ export default function FormacaoPage() {
     <div className="max-w-[1100px] mx-auto px-6 py-10">
       <div className="flex flex-wrap items-end justify-between gap-4 mb-8">
         <div>
-          <span className="eyebrow">Formação</span>
           <h1 className="text-3xl sm:text-4xl">Cursos, workshops e eventos</h1>
           <p className="text-muted mt-2 max-w-xl">
             Agenda para barbeiros que querem evoluir. Dás formação? Divulga aqui o teu próximo curso.
@@ -261,7 +260,7 @@ export default function FormacaoPage() {
                         <span className="tag">{f.tipo}</span>
                         {passado && <span className="tag">Terminado</span>}
                       </div>
-                      <p className="font-display font-semibold text-lg leading-snug">{f.titulo}</p>
+                      <p className="font-display font-bold text-lg leading-snug">{f.titulo}</p>
                       <p className="meta">{formatarData(f.data)}{f.hora ? ` · ${f.hora.slice(0, 5)}` : ''}</p>
                       <p className="meta">{f.cidade}{f.distrito ? `, ${f.distrito}` : ''} · {f.organizador}</p>
                       {f.preco && <p className="text-sm font-semibold">{f.preco}</p>}
