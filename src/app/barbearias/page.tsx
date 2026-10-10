@@ -170,7 +170,6 @@ export default function BarbeariasPage() {
     <div className="max-w-[1100px] mx-auto px-6 py-10">
       <div className="flex flex-wrap items-end justify-between gap-4 mb-8">
         <div>
-          <span className="eyebrow">Diretório</span>
           <h1 className="text-3xl sm:text-4xl">Barbearias</h1>
           <p className="text-muted mt-2 max-w-xl">
             Encontra barbearias por zona. Se tens uma, regista-a para publicares vagas.
@@ -245,7 +244,7 @@ export default function BarbeariasPage() {
                       )}
                     </div>
                     <div className="p-5 flex flex-col gap-1.5">
-                      <p className="font-display font-semibold text-lg leading-tight">{b.nome}</p>
+                      <p className="font-display font-bold text-lg leading-tight">{b.nome}</p>
                       <p className="meta">{b.cidade}{b.distrito ? `, ${b.distrito}` : ''}</p>
                       <p className="text-sm text-muted line-clamp-2">{b.sobre}</p>
                     </div>
