@@ -1,236 +1,319 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/lib/AuthProvider';
-import { TIPOS_VAGA, type Vaga, type Barbearia } from '@/lib/types';
+import { TIPOS_VAGA, type Barbearia, type Vaga } from '@/lib/types';
+import { pedirLogin, tempoRelativo } from '@/lib/utils';
 import Modal from '@/components/Modal';
+import CandidatarForm from '@/components/CandidatarForm';
 import DistritoConcelhoPicker from '@/components/DistritoConcelhoPicker';
+import { EmptyState, ErrorState, ResultsBar, SkeletonGrid } from '@/components/ListUI';
 
-function timeAgo(iso: string) {
-  const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
-  if (s < 60) return 'agora mesmo';
-  if (s < 3600) return `${Math.floor(s / 60)} min atrás`;
-  if (s < 86400) return `${Math.floor(s / 3600)} h atrás`;
-  return `${Math.floor(s / 86400)} d atrás`;
-}
+type FormVaga = {
+  barbearia_id: string;
+  titulo: string;
+  tipo: string;
+  distrito: string;
+  cidade: string;
+  descricao: string;
+};
+
+const FORM_VAZIO: FormVaga = { barbearia_id: '', titulo: '', tipo: TIPOS_VAGA[0], distrito: '', cidade: '', descricao: '' };
 
 export default function EmpregoPage() {
-  const { user } = useAuth();
+  const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
+
   const [vagas, setVagas] = useState<Vaga[]>([]);
-  const [barbearias, setBarbearias] = useState<Barbearia[]>([]);
+  const [minhasBarbearias, setMinhasBarbearias] = useState<Pick<Barbearia, 'id' | 'nome' | 'cidade' | 'distrito'>[]>([]);
+  const [barbeariasProntas, setBarbeariasProntas] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [filtroDistrito, setFiltroDistrito] = useState('Todos');
-  const [filtroConcelho, setFiltroConcelho] = useState('Todos');
-  const [filtroTipo, setFiltroTipo] = useState('Todas');
-  const [modal, setModal] = useState<'post' | 'candidatar' | null>(null);
+  const [erroLista, setErroLista] = useState(false);
 
-  const [formDistrito, setFormDistrito] = useState('');
-  const [formConcelho, setFormConcelho] = useState('');
+  const [pesquisa, setPesquisa] = useState('');
+  const [tipo, setTipo] = useState('Todos');
+  const [distrito, setDistrito] = useState('Todos');
+  const [concelho, setConcelho] = useState('Todos');
 
-  useEffect(() => {
-    if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('publicar')) {
-      setModal('post');
-    }
-  }, []);
-  const [vagaAlvo, setVagaAlvo] = useState<Vaga | null>(null);
-  const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+  const [aCandidatar, setACandidatar] = useState<Vaga | null>(null);
 
-  async function load() {
+  const [formAberto, setFormAberto] = useState(false);
+  const [form, setForm] = useState<FormVaga>(FORM_VAZIO);
+  const [aGuardar, setAGuardar] = useState(false);
+  const [erroForm, setErroForm] = useState('');
+
+  const carregar = useCallback(async () => {
     setLoading(true);
-    const [{ data: v }, { data: b }] = await Promise.all([
-      supabase.from('vagas').select('*, barbearias(nome)').order('criado_em', { ascending: false }),
-      supabase.from('barbearias').select('*').order('nome'),
-    ]);
-    setVagas((v as any) ?? []);
-    setBarbearias(b ?? []);
+    setErroLista(false);
+    const { data, error } = await supabase
+      .from('vagas')
+      .select('*, barbearias(nome, user_id)')
+      .order('criado_em', { ascending: false });
+    if (error) setErroLista(true);
+    else setVagas((data ?? []) as unknown as Vaga[]);
     setLoading(false);
-  }
-  useEffect(() => { load(); }, []);
+  }, []);
 
-  async function removerVaga(id: string) {
-    if (!confirm('Remover esta vaga?')) return;
-    const { error } = await supabase.from('vagas').delete().eq('id', id);
-    if (error) { alert('Não foi possível remover: ' + error.message); return; }
-    setVagas((cur) => cur.filter((x) => x.id !== id));
-  }
+  useEffect(() => { carregar(); }, [carregar]);
 
-  async function publicarVaga(form: FormData) {
-    const barbearia_id = form.get('barbearia_id') as string;
-    const titulo = (form.get('titulo') as string)?.trim();
-    const tipo = form.get('tipo') as string;
-    const distrito = form.get('distrito') as string;
-    const cidade = form.get('cidade') as string;
-    const descricao = (form.get('descricao') as string)?.trim();
-    if (!barbearia_id || !titulo || !distrito || !cidade || !descricao) {
-      setMsg({ text: 'Preenche todos os campos, incluindo a barbearia responsável.', ok: false });
-      return;
-    }
-    const barbearia = barbearias.find((b) => b.id === barbearia_id);
-    const { data, error } = await supabase.from('vagas').insert({ barbearia_id, titulo, tipo, cidade, distrito, descricao }).select().single();
-    if (error) { setMsg({ text: 'Algo correu mal: ' + error.message, ok: false }); return; }
-    setVagas((cur) => [{ ...(data as Vaga), barbearias: { nome: barbearia?.nome ?? '' } }, ...cur]);
-    setModal(null); setMsg(null); setFormDistrito(''); setFormConcelho('');
-  }
+  // As barbearias do utilizador (para publicar vagas e para o link das candidaturas)
+  useEffect(() => {
+    if (!user) { setMinhasBarbearias([]); setBarbeariasProntas(true); return; }
+    setBarbeariasProntas(false);
+    supabase
+      .from('barbearias')
+      .select('id, nome, cidade, distrito')
+      .eq('user_id', user.id)
+      .then(({ data }) => {
+        setMinhasBarbearias(data ?? []);
+        setBarbeariasProntas(true);
+      });
+  }, [user]);
 
-  async function enviarCandidatura(form: FormData) {
-    if (!vagaAlvo) return;
-    const nome = (form.get('nome') as string)?.trim();
-    const contacto = (form.get('contacto') as string)?.trim();
-    const mensagem = (form.get('mensagem') as string)?.trim();
-    if (!nome || !contacto) {
-      setMsg({ text: 'Indica o teu nome e um contacto (telemóvel ou email).', ok: false });
-      return;
-    }
-    const { error } = await supabase.from('candidaturas').insert({ vaga_id: vagaAlvo.id, nome, contacto, mensagem });
-    if (error) { setMsg({ text: 'Algo correu mal: ' + error.message, ok: false }); return; }
+  const abrirPublicar = useCallback(() => {
+    setForm({ ...FORM_VAZIO, barbearia_id: minhasBarbearias[0]?.id ?? '', distrito: minhasBarbearias[0]?.distrito ?? '', cidade: minhasBarbearias[0]?.cidade ?? '' });
+    setErroForm('');
+    setFormAberto(true);
+  }, [minhasBarbearias]);
 
-    const barbearia = barbearias.find((b) => b.id === vagaAlvo.barbearia_id);
-    if (barbearia?.email) {
-      try {
-        await fetch('/api/notificar-candidatura', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ to: barbearia.email, vagaTitulo: vagaAlvo.titulo, nome, contacto, mensagem }),
-        });
-      } catch {
-        // notificação é best-effort — a candidatura já ficou guardada de qualquer forma
-      }
-    }
-
-    setMsg({ text: 'Candidatura enviada! A barbearia vai poder ver os teus dados.', ok: true });
-    setTimeout(() => { setModal(null); setMsg(null); }, 1200);
+  function aoClicarPublicar() {
+    if (!user) { router.push(pedirLogin('/emprego?publicar=1')); return; }
+    abrirPublicar();
   }
 
-  const listaFiltrada = vagas.filter(
-    (v) => (filtroDistrito === 'Todos' || v.distrito === filtroDistrito) &&
-           (filtroConcelho === 'Todos' || v.cidade === filtroConcelho) &&
-           (filtroTipo === 'Todas' || v.tipo === filtroTipo)
-  );
+  // ?publicar=1 -> abre o formulário depois de sabermos quem é o utilizador e as suas barbearias.
+  const [paramTratado, setParamTratado] = useState(false);
+  useEffect(() => {
+    if (paramTratado || authLoading) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('publicar') !== '1') { setParamTratado(true); return; }
+    if (!user) { setParamTratado(true); router.push(pedirLogin('/emprego?publicar=1')); return; }
+    if (!barbeariasProntas) return;
+    setParamTratado(true);
+    window.history.replaceState(null, '', '/emprego');
+    abrirPublicar();
+  }, [authLoading, user, barbeariasProntas, paramTratado, abrirPublicar, router]);
+
+  function escolherBarbearia(id: string) {
+    const b = minhasBarbearias.find((x) => x.id === id);
+    setForm((f) => ({ ...f, barbearia_id: id, distrito: b?.distrito ?? f.distrito, cidade: b?.cidade ?? f.cidade }));
+  }
+
+  async function publicar(ev: React.FormEvent) {
+    ev.preventDefault();
+    if (!user || aGuardar) return;
+    setErroForm('');
+    if (!form.barbearia_id) return setErroForm('Escolhe a barbearia.');
+    if (form.titulo.trim().length < 3) return setErroForm('Indica o título da vaga.');
+    if (!form.distrito || !form.cidade) return setErroForm('Escolhe o distrito e o concelho.');
+    if (form.descricao.trim().length < 10) return setErroForm('Descreve a vaga com pelo menos 10 caracteres.');
+
+    setAGuardar(true);
+    const { error } = await supabase.from('vagas').insert({
+      barbearia_id: form.barbearia_id,
+      titulo: form.titulo.trim(),
+      tipo: form.tipo,
+      distrito: form.distrito,
+      cidade: form.cidade,
+      descricao: form.descricao.trim(),
+    });
+    setAGuardar(false);
+    if (error) { setErroForm('Não foi possível publicar: ' + error.message); return; }
+    setFormAberto(false);
+    carregar();
+  }
+
+  async function remover(v: Vaga) {
+    if (!user || v.barbearias?.user_id !== user.id) return;
+    if (!window.confirm('Remover esta vaga? As candidaturas recebidas também serão apagadas.')) return;
+    const { error } = await supabase.from('vagas').delete().eq('id', v.id);
+    if (error) { window.alert('Não foi possível remover: ' + error.message); return; }
+    carregar();
+  }
+
+  const filtrada = useMemo(() => {
+    const q = pesquisa.trim().toLowerCase();
+    return vagas.filter((v) => {
+      if (tipo !== 'Todos' && v.tipo !== tipo) return false;
+      if (distrito !== 'Todos' && v.distrito !== distrito) return false;
+      if (concelho !== 'Todos' && v.cidade !== concelho) return false;
+      if (q && !`${v.titulo} ${v.barbearias?.nome ?? ''} ${v.cidade} ${v.descricao}`.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [vagas, pesquisa, tipo, distrito, concelho]);
+
+  const filtrado = pesquisa !== '' || tipo !== 'Todos' || distrito !== 'Todos' || concelho !== 'Todos';
+  function limpar() { setPesquisa(''); setTipo('Todos'); setDistrito('Todos'); setConcelho('Todos'); }
 
   return (
     <div className="max-w-[1100px] mx-auto px-6 py-10">
-      <div className="flex justify-between items-end flex-wrap gap-4 mb-6">
+      <div className="flex flex-wrap items-end justify-between gap-4 mb-8">
         <div>
-          <span className="font-mono text-[11px] tracking-wide text-red font-semibold block mb-1">Bolsa de emprego</span>
-          <h2 className="text-3xl">Emprego de barbeiro em Portugal</h2>
+          <span className="eyebrow">Vagas</span>
+          <h1 className="text-3xl sm:text-4xl">Emprego para barbeiros</h1>
+          <p className="text-muted mt-2 max-w-xl">
+            Vagas publicadas por barbearias de todo o país. Candidata-te sem criar conta.
+          </p>
         </div>
-        <div className="flex gap-2">
-          {user && <Link href="/emprego/candidaturas" className="btn btn-sm">Candidaturas recebidas</Link>}
-          <button className="btn btn-red" onClick={() => setModal('post')}>Publicar vaga</button>
+        <div className="flex flex-wrap gap-2">
+          {minhasBarbearias.length > 0 && (
+            <Link href="/emprego/candidaturas" className="btn">Candidaturas recebidas</Link>
+          )}
+          <button type="button" onClick={aoClicarPublicar} className="btn btn-primary">Publicar vaga</button>
         </div>
       </div>
 
-      <div className="flex gap-2.5 flex-wrap mb-6">
-        <DistritoConcelhoPicker
-          distrito={filtroDistrito}
-          concelho={filtroConcelho}
-          onDistritoChange={setFiltroDistrito}
-          onConcelhoChange={setFiltroConcelho}
-          allowTodos
+      <div className="flex flex-wrap gap-2 mb-5">
+        <input
+          type="search"
+          aria-label="Pesquisar vagas"
+          placeholder="Pesquisar vagas"
+          className="field-input w-full sm:w-56"
+          value={pesquisa}
+          onChange={(e) => setPesquisa(e.target.value)}
         />
-        <select className="field-input w-auto font-mono text-xs uppercase" value={filtroTipo} onChange={(e) => setFiltroTipo(e.target.value)}>
-          <option value="Todas">Todos os tipos</option>
+        <select aria-label="Tipo de vaga" className="field-input w-auto" value={tipo} onChange={(e) => setTipo(e.target.value)}>
+          <option value="Todos">Todos os tipos</option>
           {TIPOS_VAGA.map((t) => <option key={t} value={t}>{t}</option>)}
         </select>
+        <DistritoConcelhoPicker
+          allowTodos
+          distrito={distrito}
+          concelho={concelho}
+          onDistritoChange={setDistrito}
+          onConcelhoChange={setConcelho}
+        />
       </div>
 
+      <p className="meta mb-5 max-w-2xl">
+        <strong className="text-ink">Cadeira livre (aluguer):</strong> trabalhas por conta própria na barbearia e pagas
+        um valor pela cadeira, ficando com os teus clientes e os teus ganhos.
+      </p>
+
       {loading ? (
-        <p className="font-mono text-sm text-muted text-center py-16">A carregar vagas…</p>
-      ) : listaFiltrada.length === 0 ? (
-        <div className="text-center py-16 border-[1.5px] border-dashed border-line rounded-xl">
-          <h3 className="text-2xl mb-2">Ainda não há vagas aqui</h3>
-          <p className="text-sm text-muted mb-4">Sê a primeira barbearia a publicar uma oportunidade nesta zona.</p>
-          <button className="btn btn-primary" onClick={() => setModal('post')}>Publicar vaga</button>
-        </div>
+        <SkeletonGrid />
+      ) : erroLista ? (
+        <ErrorState onRetry={carregar} />
       ) : (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {listaFiltrada.map((v) => (
-            <div key={v.id} className="card border-l-4 border-l-red">
-              <span className="tag !bg-navy !text-white w-fit">{v.tipo}</span>
-              <Link href={`/emprego/${v.id}`} className="font-bold text-base hover:text-red">{v.titulo}</Link>
-              <div className="font-mono text-[11px] text-muted">
-                {v.barbearias?.nome ?? 'Barbearia'} · {v.cidade}{v.distrito ? `, ${v.distrito}` : ''} · {timeAgo(v.criado_em)}
-              </div>
-              <p className="text-sm text-[#4a4536] line-clamp-3">{v.descricao}</p>
-              <div className="flex gap-2 mt-1">
-                <button className="btn btn-red btn-sm" onClick={() => { setVagaAlvo(v); setModal('candidatar'); }}>Candidatar-me</button>
-                <button className="btn btn-danger btn-sm" onClick={() => removerVaga(v.id)}>Remover</button>
-              </div>
+        <>
+          <ResultsBar count={filtrada.length} singular="vaga" plural="vagas" filtrado={filtrado} onClear={limpar} />
+          {filtrada.length === 0 ? (
+            filtrado ? (
+              <EmptyState
+                title="Nenhuma vaga com estes filtros."
+                text="Experimenta alargar a zona ou limpar os filtros."
+                action={<button type="button" onClick={limpar} className="btn btn-sm mt-1">Limpar filtros</button>}
+              />
+            ) : (
+              <EmptyState
+                title="Ainda não há vagas publicadas."
+                text="Tens uma barbearia? Publica a primeira vaga gratuitamente."
+                action={<button type="button" onClick={aoClicarPublicar} className="btn btn-primary btn-sm mt-1">Publicar vaga</button>}
+              />
+            )
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2">
+              {filtrada.map((v) => (
+                <article key={v.id} className="card">
+                  <div className="flex items-start justify-between gap-3">
+                    <h2 className="text-lg leading-snug">
+                      <Link href={`/emprego/${v.id}`} className="hover:text-red">{v.titulo}</Link>
+                    </h2>
+                    <span className="tag shrink-0">{v.tipo}</span>
+                  </div>
+                  <p className="meta">
+                    {v.barbearias?.nome ?? 'Barbearia'} · {v.cidade}{v.distrito ? `, ${v.distrito}` : ''}
+                  </p>
+                  <p className="text-sm text-muted line-clamp-3">{v.descricao}</p>
+                  <div className="flex items-center justify-between gap-2 mt-auto pt-2">
+                    <span className="meta">{tempoRelativo(v.criado_em)}</span>
+                    <div className="flex gap-2">
+                      {user && v.barbearias?.user_id === user.id && (
+                        <button type="button" className="btn btn-danger btn-sm" onClick={() => remover(v)}>Remover</button>
+                      )}
+                      <Link href={`/emprego/${v.id}`} className="btn btn-sm">Ver vaga</Link>
+                      <button type="button" className="btn btn-primary btn-sm" onClick={() => setACandidatar(v)}>Candidatar</button>
+                    </div>
+                  </div>
+                </article>
+              ))}
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
 
-      {modal === 'post' && (
-        <Modal onClose={() => { setModal(null); setMsg(null); setFormDistrito(''); setFormConcelho(''); }}>
-          {barbearias.length === 0 ? (
-            <>
-              <h2 className="text-3xl mb-1">Publicar vaga</h2>
-              <p className="text-sm text-muted mb-5">Precisas de registar a tua barbearia primeiro, para os barbeiros saberem quem está a contratar.</p>
-              <a href="/barbearias?registar=1" className="btn btn-primary w-full justify-center">Registar barbearia agora</a>
-            </>
-          ) : (
-            <form onSubmit={(e) => { e.preventDefault(); publicarVaga(new FormData(e.currentTarget)); }}>
-              <h2 className="text-3xl mb-1">Publicar vaga</h2>
-              <p className="text-sm text-muted mb-5">A vaga aparece imediatamente para todos os barbeiros.</p>
-              {msg && <div className={`text-sm font-mono px-3 py-2.5 rounded-md mb-3 ${msg.ok ? 'bg-[#dfe9df] text-[#2e5a2e]' : 'bg-[#f3d9d4] text-redDark'}`}>{msg.text}</div>}
-              <label className="block mb-3.5">
-                <span className="field-label">Barbearia responsável</span>
-                <select name="barbearia_id" className="field-input">
-                  {barbearias.map((b) => <option key={b.id} value={b.id}>{b.nome}</option>)}
-                </select>
-              </label>
-              <label className="block mb-3.5">
-                <span className="field-label">Título da vaga</span>
-                <input name="titulo" className="field-input" placeholder="Ex: Barbeiro para fins de semana" />
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                <label className="block mb-3.5">
-                  <span className="field-label">Tipo</span>
-                  <select name="tipo" className="field-input">{TIPOS_VAGA.map((t) => <option key={t}>{t}</option>)}</select>
-                </label>
-                <label className="block mb-3.5">
-                  <span className="field-label">Distrito</span>
-                  <DistritoConcelhoPicker
-                    distrito={formDistrito} concelho={formConcelho}
-                    onDistritoChange={setFormDistrito} onConcelhoChange={setFormConcelho}
-                    distritoName="distrito" concelhoName="cidade"
-                    className="field-input"
-                  />
-                </label>
-              </div>
-              <label className="block mb-3.5">
-                <span className="field-label">Descrição</span>
-                <textarea name="descricao" className="field-input min-h-[90px]" placeholder="Horário, condições, o que procuras no candidato." />
-              </label>
-              <button type="submit" className="btn btn-red w-full justify-center">Publicar vaga</button>
-            </form>
-          )}
+      {aCandidatar && (
+        <Modal onClose={() => setACandidatar(null)}>
+          <CandidatarForm vagaId={aCandidatar.id} vagaTitulo={aCandidatar.titulo} />
         </Modal>
       )}
 
-      {modal === 'candidatar' && vagaAlvo && (
-        <Modal onClose={() => { setModal(null); setMsg(null); }}>
-          <form onSubmit={(e) => { e.preventDefault(); enviarCandidatura(new FormData(e.currentTarget)); }}>
-            <h2 className="text-3xl mb-1">Candidatar-me</h2>
-            <p className="text-sm text-muted mb-5">{vagaAlvo.titulo} · {vagaAlvo.barbearias?.nome} · {vagaAlvo.cidade}</p>
-            {msg && <div className={`text-sm font-mono px-3 py-2.5 rounded-md mb-3 ${msg.ok ? 'bg-[#dfe9df] text-[#2e5a2e]' : 'bg-[#f3d9d4] text-redDark'}`}>{msg.text}</div>}
-            <label className="block mb-3.5">
-              <span className="field-label">O teu nome</span>
-              <input name="nome" className="field-input" placeholder="Nome completo" />
-            </label>
-            <label className="block mb-3.5">
-              <span className="field-label">Contacto (telemóvel ou email)</span>
-              <input name="contacto" className="field-input" placeholder="9xx xxx xxx ou email" />
-            </label>
-            <label className="block mb-3.5">
-              <span className="field-label">Mensagem (opcional)</span>
-              <textarea name="mensagem" className="field-input min-h-[80px]" placeholder="Uma breve apresentação para a barbearia." />
-            </label>
-            <button type="submit" className="btn btn-red w-full justify-center">Enviar candidatura</button>
-          </form>
+      {formAberto && (
+        <Modal onClose={() => setFormAberto(false)}>
+          {minhasBarbearias.length === 0 ? (
+            <div className="py-2">
+              <h2 className="text-2xl mb-2 pr-8">Primeiro, regista a tua barbearia</h2>
+              <p className="text-sm text-muted mb-5">
+                As vagas ficam associadas a uma barbearia. O registo é gratuito e demora um minuto.
+              </p>
+              <Link href="/barbearias?registar=1" className="btn btn-primary">Registar barbearia</Link>
+            </div>
+          ) : (
+            <form onSubmit={publicar} className="space-y-4">
+              <h2 className="text-2xl pr-8">Publicar vaga</h2>
+
+              <div>
+                <label htmlFor="v-barb" className="field-label">Barbearia</label>
+                <select id="v-barb" className="field-input" value={form.barbearia_id} onChange={(e) => escolherBarbearia(e.target.value)} required>
+                  {minhasBarbearias.map((b) => <option key={b.id} value={b.id}>{b.nome}</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label htmlFor="v-titulo" className="field-label">Título</label>
+                <input id="v-titulo" className="field-input" value={form.titulo} maxLength={120}
+                  placeholder="Ex.: Barbeiro com experiência em degradê"
+                  onChange={(e) => setForm({ ...form, titulo: e.target.value })} required />
+              </div>
+
+              <div>
+                <label htmlFor="v-tipo" className="field-label">Tipo</label>
+                <select id="v-tipo" className="field-input" value={form.tipo} onChange={(e) => setForm({ ...form, tipo: e.target.value })}>
+                  {TIPOS_VAGA.map((t) => <option key={t} value={t}>{t}</option>)}
+                </select>
+                {form.tipo.startsWith('Cadeira livre') && (
+                  <p className="meta mt-1.5">O barbeiro trabalha por conta própria e paga um valor pela cadeira.</p>
+                )}
+              </div>
+
+              <div>
+                <span className="field-label">Localização</span>
+                <DistritoConcelhoPicker
+                  distrito={form.distrito}
+                  concelho={form.cidade}
+                  onDistritoChange={(v) => setForm((f) => ({ ...f, distrito: v }))}
+                  onConcelhoChange={(v) => setForm((f) => ({ ...f, cidade: v }))}
+                  className="field-input"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="v-desc" className="field-label">Descrição</label>
+                <textarea id="v-desc" className="field-input min-h-[130px]" value={form.descricao} maxLength={2000}
+                  placeholder="Funções, horário, o que oferecem e o que procuram."
+                  onChange={(e) => setForm({ ...form, descricao: e.target.value })} required />
+              </div>
+
+              {erroForm && <p role="alert" className="text-sm text-red">{erroForm}</p>}
+
+              <button type="submit" disabled={aGuardar} className="btn btn-primary w-full">
+                {aGuardar ? 'A publicar...' : 'Publicar vaga'}
+              </button>
+            </form>
+          )}
         </Modal>
       )}
     </div>
