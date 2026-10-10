@@ -1,16 +1,16 @@
 import type { Metadata, Viewport } from 'next';
-import { Poppins, Inter } from 'next/font/google';
+import { Bricolage_Grotesque, Inter, Bebas_Neue } from 'next/font/google';
 import './globals.css';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { AuthProvider } from '@/lib/AuthProvider';
 
-const poppins = Poppins({
-  weight: ['500', '600', '700'],
+const bricolage = Bricolage_Grotesque({
   subsets: ['latin'],
-  variable: '--font-display',
+  variable: '--font-heading',
   display: 'swap',
 });
+const bebas = Bebas_Neue({ weight: '400', subsets: ['latin'], variable: '--font-brand', display: 'swap' });
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' });
 
 const DESCRICAO =
@@ -39,12 +39,12 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#fefefc',
+  themeColor: '#fdfcf9',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-PT" className={`${poppins.variable} ${inter.variable}`}>
+    <html lang="pt-PT" className={`${bricolage.variable} ${inter.variable} ${bebas.variable}`}>
       <body className="font-body min-h-screen flex flex-col">
         <AuthProvider>
           <a
