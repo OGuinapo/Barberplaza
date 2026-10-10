@@ -39,7 +39,7 @@ export default function Home() {
         <ol className="grid gap-10 md:grid-cols-3">
           {PASSOS.map((p) => (
             <li key={p.n}>
-              <span className="font-brand text-5xl text-brass leading-none">{p.n}</span>
+              <span className="font-brand text-5xl text-red leading-none">{p.n}</span>
               <h3 className="text-xl mt-3 mb-1.5">{p.titulo}</h3>
               <p className="text-[15px] text-muted leading-relaxed max-w-xs">{p.texto}</p>
             </li>
