@@ -8,14 +8,17 @@
 
 body {
   @apply bg-paper text-ink antialiased;
+  /* papel: ruído muito leve, quase impercetível */
+  background-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .45  0 0 0 0 .38  0 0 0 0 .25  0 0 0 .05 0'/%3E%3C/filter%3E%3Crect width='100%' height='100%' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
 h1, h2, h3 {
-  @apply font-display font-bold tracking-tight;
-  line-height: 1.15;
+  @apply font-display tracking-tight;
+  font-weight: 600;
+  line-height: 1.12;
 }
 
-/* ---------- listra de barbeiro (assinatura visual) ---------- */
+/* ---------- poste de barbeiro (assinatura visual) ---------- */
 .pole-stripe {
   background: repeating-linear-gradient(
     45deg,
@@ -37,42 +40,51 @@ h1, h2, h3 {
   100% { background-position: 74px 0; }
 }
 
+/* ---------- chão de azulejo (remate do rodapé) ---------- */
+.checker {
+  height: 20px;
+  background: repeating-conic-gradient(#1e1c18 0% 25%, #fdfcf9 0% 50%) 0 0 / 20px 20px;
+}
+
 /* ---------- componentes reutilizáveis ---------- */
 @layer components {
-  .eyebrow {
-    @apply block text-xs font-semibold tracking-[0.08em] uppercase text-red mb-2;
-  }
   .meta {
     @apply text-[13px] text-muted;
   }
 
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-white px-4 py-2.5 text-sm font-semibold text-ink whitespace-nowrap cursor-pointer transition duration-150 hover:bg-paper2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy focus-visible:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed;
+    @apply inline-flex items-center justify-center gap-2 rounded-full border border-line bg-white px-5 py-2.5 text-sm font-semibold text-ink whitespace-nowrap cursor-pointer transition duration-150 hover:bg-paper2 hover:border-ink/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass focus-visible:ring-offset-2 focus-visible:ring-offset-paper disabled:opacity-60 disabled:cursor-not-allowed;
   }
-  .btn-primary { @apply bg-ink text-white border-ink hover:bg-[#33322d]; }
+  .btn-primary { @apply bg-ink text-white border-ink hover:bg-[#38352e] hover:border-[#38352e]; }
   .btn-red { @apply bg-red text-white border-red hover:bg-redDark hover:border-redDark; }
   .btn-ghost { @apply border-transparent bg-transparent hover:bg-paper2; }
-  .btn-danger { @apply bg-white text-red border-red/30 hover:bg-red/5; }
-  .btn-sm { @apply px-3 py-1.5 text-[13px]; }
+  .btn-danger { @apply bg-white text-red border-red/30 hover:bg-red/5 hover:border-red/50; }
+  .btn-sm { @apply px-4 py-1.5 text-[13px]; }
 
   .field-input {
-    @apply w-full text-sm px-3 py-2.5 border border-[#d8d5ca] rounded-lg bg-white text-ink placeholder:text-[#9a968a] focus:outline-none focus:border-navy focus:ring-2 focus:ring-navy/15 disabled:bg-paper2 disabled:text-muted disabled:cursor-not-allowed;
+    @apply w-full text-sm px-3.5 py-2.5 border border-[#d9d5c8] rounded-xl bg-white text-ink placeholder:text-[#9a968a] focus:outline-none focus:border-navy focus:ring-2 focus:ring-navy/15 disabled:bg-paper2 disabled:text-muted disabled:cursor-not-allowed;
   }
   .field-label {
     @apply block text-[13px] font-semibold text-ink mb-1.5;
   }
 
+  /* superfícies: linha fina, sem sombra pesada */
   .card {
-    @apply bg-white border border-line rounded-2xl p-5 shadow-sm flex flex-col gap-2.5 transition-shadow hover:shadow-md;
+    @apply bg-white border border-line rounded-4xl p-5 flex flex-col gap-2.5 transition duration-150 hover:border-brass/60 hover:shadow-[0_6px_20px_-12px_rgba(90,60,10,0.35)];
+  }
+
+  /* vaga: linha de lista */
+  .job {
+    @apply bg-white border border-line rounded-4xl px-6 py-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between transition duration-150 hover:border-brass/60 hover:shadow-[0_6px_20px_-12px_rgba(90,60,10,0.35)];
   }
 
   .chip {
-    @apply text-[13px] font-medium px-3 py-1.5 rounded-full border border-line cursor-pointer select-none bg-white hover:bg-paper2 transition-colors;
+    @apply text-[13px] font-medium px-3.5 py-1.5 rounded-full border border-line cursor-pointer select-none bg-white hover:bg-paper2 transition-colors;
   }
   .chip.on { @apply bg-navy text-white border-navy hover:bg-navy; }
 
   .tag {
-    @apply inline-block text-xs font-medium bg-paper2 px-2.5 py-1 rounded-md text-[#3a372f];
+    @apply inline-block text-xs font-medium bg-paper2 border border-line px-2.5 py-0.5 rounded-full text-[#3a372f];
   }
 
   .skeleton {
