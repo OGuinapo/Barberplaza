@@ -1,69 +1,144 @@
 import Link from 'next/link';
+import { supabase } from '@/lib/supabaseClient';
 
-export default function HomePage() {
+export const revalidate = 300;
+
+type VagaResumo = {
+  id: string;
+  titulo: string;
+  tipo: string;
+  cidade: string;
+  distrito: string | null;
+  barbearias: { nome: string } | { nome: string }[] | null;
+};
+
+async function ultimasVagas(): Promise<VagaResumo[]> {
+  try {
+    const { data, error } = await supabase
+      .from('vagas')
+      .select('id, titulo, tipo, cidade, distrito, barbearias(nome)')
+      .order('criado_em', { ascending: false })
+      .limit(3);
+    if (error) return [];
+    return (data ?? []) as unknown as VagaResumo[];
+  } catch {
+    return [];
+  }
+}
+
+const PASSOS = [
+  { n: '1', titulo: 'Cria o perfil', texto: 'Barbeiros criam o portefólio com fotos. Barbearias registam o espaço e a equipa.' },
+  { n: '2', titulo: 'Encontra ou publica', texto: 'Filtra vagas por distrito e concelho, ou publica uma vaga em poucos minutos.' },
+  { n: '3', titulo: 'Fala diretamente', texto: 'O contacto é feito fora da plataforma, por telemóvel ou email. Sem intermediários.' },
+];
+
+const CAMINHOS = [
+  {
+    titulo: 'Sou barbeiro',
+    texto: 'Mostra o teu trabalho e candidata-te a vagas em todo o país.',
+    href: '/barbeiros?registar=1',
+    cta: 'Criar portefólio',
+  },
+  {
+    titulo: 'Tenho uma barbearia',
+    texto: 'Regista o teu espaço, publica vagas e recebe candidaturas.',
+    href: '/barbearias?registar=1',
+    cta: 'Registar barbearia',
+  },
+  {
+    titulo: 'Dou formação',
+    texto: 'Divulga cursos, workshops e eventos a quem quer evoluir.',
+    href: '/formacao?publicar=1',
+    cta: 'Divulgar formação',
+  },
+];
+
+export default async function Home() {
+  const vagas = await ultimasVagas();
+
+  const siteLd = {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: 'BarberPlaza',
+    url: 'https://barberplaza.net',
+    inLanguage: 'pt-PT',
+  };
+
   return (
-    <div className="max-w-[1100px] mx-auto px-6">
-      {/* HERO */}
-      <section className="py-16 flex flex-col md:flex-row gap-10 items-center">
-        <div className="w-full md:w-3.5 h-3.5 md:h-56 rounded-md pole-stripe pole-anim shrink-0" />
-        <div className="flex-1 min-w-0">
-          <span className="inline-flex items-center gap-1.5 font-mono text-[11px] font-semibold tracking-wide bg-red text-white px-2.5 py-1 rounded-full mb-4">
-            GRÁTIS ENQUANTO ESTAMOS EM BETA
-          </span>
-          <h1 className="text-5xl md:text-7xl mb-4">
-            A cadeira certa.<br /><span className="text-red">O barbeiro certo.</span>
-          </h1>
-          <p className="text-[17px] max-w-lg text-[#3a372f] mb-7">
-            BarberPlaza junta barbeiros e barbearias de Portugal num só mural: cria o teu
-            portefólio, publica vagas e encontra a tua próxima cadeira — sem intermediários.
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(siteLd) }} />
+
+      <section className="border-b border-line">
+        <div className="max-w-[1100px] mx-auto px-6 py-16 sm:py-24">
+          <p className="inline-flex items-center gap-2 text-xs font-semibold text-muted bg-white border border-line rounded-full px-3 py-1.5 mb-6">
+            <span className="w-2 h-2 rounded-full bg-red" aria-hidden="true" />
+            Em beta · gratuito para barbeiros e barbearias
           </p>
-          <div className="flex gap-3 flex-wrap">
-            <Link href="/barbeiros?registar=1" className="btn btn-red">Criar portefólio de barbeiro</Link>
-            <Link href="/barbearias?registar=1" className="btn btn-primary">Registar a minha barbearia</Link>
+          <h1 className="text-4xl sm:text-6xl max-w-3xl">
+            Emprego e formação para barbeiros em Portugal
+          </h1>
+          <p className="text-lg text-muted mt-5 max-w-2xl">
+            Encontra vaga, mostra o teu trabalho ou contrata o próximo barbeiro da tua equipa.
+            Sem comissões, sem subscrições.
+          </p>
+          <div className="flex flex-wrap gap-3 mt-8">
+            <Link href="/emprego" className="btn btn-primary">Ver vagas</Link>
+            <Link href="/barbeiros" className="btn">Descobrir barbeiros</Link>
           </div>
         </div>
       </section>
 
-      {/* COMO FUNCIONA */}
-      <section className="py-14">
-        <span className="font-mono text-[11px] tracking-wide text-red font-semibold block mb-1">Como funciona</span>
-        <h2 className="text-3xl mb-6">Três passos, sem burocracia</h2>
-        <div className="grid md:grid-cols-3 gap-5">
-          {[
-            ['01', 'Cria o teu perfil', 'Barbeiros montam o portefólio com fotos, experiência e especialidades. Barbearias apresentam o espaço e a equipa.'],
-            ['02', 'Publica ou procura', 'Barbearias publicam vagas — tempo inteiro, part-time ou cadeira livre. Barbeiros exploram por cidade e especialidade.'],
-            ['03', 'Entram em contacto', 'Candidata-te diretamente. Os teus dados de contacto seguem para a barbearia, sem passos extra.'],
-          ].map(([num, title, desc]) => (
-            <div key={num} className="card">
-              <div className="font-display text-4xl text-red leading-none">{num}</div>
-              <h3 className="text-xl font-body normal-case tracking-normal font-bold">{title}</h3>
-              <p className="text-sm text-[#4a4536]">{desc}</p>
+      {vagas.length > 0 && (
+        <section className="max-w-[1100px] mx-auto px-6 pt-14">
+          <div className="flex items-end justify-between gap-4 mb-5">
+            <div>
+              <span className="eyebrow">Mais recentes</span>
+              <h2 className="text-2xl sm:text-3xl">Últimas vagas</h2>
+            </div>
+            <Link href="/emprego" className="text-sm font-semibold text-red hover:underline">Ver todas</Link>
+          </div>
+          <div className="grid gap-4 md:grid-cols-3">
+            {vagas.map((v) => {
+              const b = Array.isArray(v.barbearias) ? v.barbearias[0] : v.barbearias;
+              return (
+                <Link key={v.id} href={`/emprego/${v.id}`} className="card">
+                  <span className="tag self-start">{v.tipo}</span>
+                  <p className="font-display font-semibold text-lg leading-snug">{v.titulo}</p>
+                  <p className="meta">{b?.nome ?? 'Barbearia'} · {v.cidade}{v.distrito ? `, ${v.distrito}` : ''}</p>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      <section className="max-w-[1100px] mx-auto px-6 pt-16">
+        <span className="eyebrow">Como funciona</span>
+        <h2 className="text-2xl sm:text-3xl mb-6">Simples, direto e gratuito</h2>
+        <ol className="grid gap-4 md:grid-cols-3">
+          {PASSOS.map((p) => (
+            <li key={p.n} className="card">
+              <span className="w-8 h-8 rounded-full bg-ink text-white text-sm font-semibold flex items-center justify-center" aria-hidden="true">{p.n}</span>
+              <h3 className="text-lg">{p.titulo}</h3>
+              <p className="text-sm text-muted">{p.texto}</p>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      <section className="max-w-[1100px] mx-auto px-6 pt-16">
+        <span className="eyebrow">Começa aqui</span>
+        <h2 className="text-2xl sm:text-3xl mb-6">Qual é o teu caminho?</h2>
+        <div className="grid gap-4 md:grid-cols-3">
+          {CAMINHOS.map((c) => (
+            <div key={c.titulo} className="card">
+              <h3 className="text-xl">{c.titulo}</h3>
+              <p className="text-sm text-muted flex-1">{c.texto}</p>
+              <Link href={c.href} className="btn btn-primary self-start mt-2">{c.cta}</Link>
             </div>
           ))}
         </div>
       </section>
-
-      {/* CAMINHOS */}
-      <section className="py-14">
-        <span className="font-mono text-[11px] tracking-wide text-red font-semibold block mb-1">Comunidade</span>
-        <h2 className="text-3xl mb-6">Escolhe o teu caminho</h2>
-        <div className="grid md:grid-cols-2 gap-5">
-          <div className="bg-card border-[1.5px] border-ink rounded-2xl p-7">
-            <h3 className="text-2xl mb-2 font-body normal-case tracking-normal font-bold">Sou barbeiro</h3>
-            <p className="text-sm text-[#4a4536] mb-4">
-              Mostra o teu trabalho, define a tua cidade e especialidades, e aparece para barbearias à procura de talento.
-            </p>
-            <Link href="/barbeiros?registar=1" className="btn btn-red">Criar o meu portefólio</Link>
-          </div>
-          <div className="bg-card border-[1.5px] border-ink rounded-2xl p-7">
-            <h3 className="text-2xl mb-2 font-body normal-case tracking-normal font-bold">Sou barbearia</h3>
-            <p className="text-sm text-[#4a4536] mb-4">
-              Apresenta o teu espaço e publica as vagas em aberto — tempo inteiro, part-time ou aluguer de cadeira.
-            </p>
-            <Link href="/barbearias?registar=1" className="btn btn-primary">Registar barbearia</Link>
-          </div>
-        </div>
-      </section>
-    </div>
+    </>
   );
 }
